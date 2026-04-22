@@ -1,0 +1,25 @@
+{
+  "overview": "WeFlow is a project management app by nHive with a 4-step onboarding flow, Kanban board, sprint management, and team health metrics — all in an orange/amber themed interface.",
+  "features": [
+    "4-step onboarding (account, profile, workspace, team invite)",
+    "Kanban board with To Do / Doing / Done / Blocked columns",
+    "Sprint management with live badges",
+    "Task cards with department tags, due dates, and assignees",
+    "Task detail modal with full editing",
+    "Left sidebar with sprint selector and task buckets",
+    "Right sidebar with team health metrics",
+    "Profile photo and workspace logo uploads",
+    "Team member management with roles",
+    "Orange/amber primary color scheme"
+  ],
+  "category": "productivity",
+  "tags": [
+    "project-management",
+    "kanban",
+    "sprints",
+    "team",
+    "onboarding",
+    "dashboard"
+  ],
+  "last_updated": "2026-04-13T10:24:29.653Z"
+}
