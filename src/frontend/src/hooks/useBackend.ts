@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "./useAuthStore";
+import axios from "axios";
 import {
   MOCK_BUCKETS,
   MOCK_MEMBERS,
-  MOCK_PROFILE,
-  MOCK_SPRINTS,
-  MOCK_TASKS,
   MOCK_TEAM_HEALTH,
   MOCK_WORKSPACE,
 } from "../data/mockData";
@@ -21,14 +20,50 @@ import type {
   WorkspaceMember,
 } from "../types";
 
+const API_URL = "http://localhost:5000/api/data";
+
+const getAuthHeaders = () => {
+  const token = useAuthStore.getState().token;
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
+
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
 export function useProfile() {
+  const user = useAuthStore((state) => state.user);
+  
+  const fallbackProfile: UserProfile = {
+    id: "temp-user",
+    name: "Guest User",
+    email: "guest@example.com",
+    initials: "GU",
+    workspaceId: "ws-inhive",
+    role: "viewer",
+    onboardingCompleted: false,
+    joinDate: new Date().toISOString(),
+  };
+
+  const profile: UserProfile = user ? {
+    id: user._id || "user-temp",
+    name: user.name,
+    email: user.email,
+    initials: user.name.substring(0, 2).toUpperCase(),
+    workspaceId: "ws-inhive",
+    role: user.role === 'creator' ? "admin" : "member",
+    onboardingCompleted: true,
+    joinDate: new Date().toISOString(),
+    avatarUrl: user.avatar,
+  } : fallbackProfile;
+
   return useQuery<UserProfile>({
-    queryKey: ["profile"],
-    queryFn: async () => MOCK_PROFILE,
+    queryKey: ["profile", user?._id],
+    queryFn: async () => profile,
     enabled: true,
-    initialData: MOCK_PROFILE,
+    initialData: profile,
   });
 }
 
@@ -46,11 +81,15 @@ export function useWorkspace() {
 // ─── Sprints ─────────────────────────────────────────────────────────────────
 
 export function useSprints() {
+  const user = useAuthStore((state) => state.user);
   return useQuery<Sprint[]>({
     queryKey: ["sprints"],
-    queryFn: async () => MOCK_SPRINTS,
-    enabled: true,
-    initialData: MOCK_SPRINTS,
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/sprints`, getAuthHeaders());
+      return data;
+    },
+    enabled: !!user,
+    initialData: [],
   });
 }
 
@@ -62,28 +101,44 @@ export function useActiveSprint() {
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 
 export function useTasks(sprintId?: string) {
+  const user = useAuthStore((state) => state.user);
   return useQuery<Task[]>({
     queryKey: ["tasks", sprintId],
     queryFn: async () => {
-      return sprintId
-        ? MOCK_TASKS.filter((t) => t.sprintId === sprintId)
-        : MOCK_TASKS;
+      const url = sprintId ? `${API_URL}/tasks?sprintId=${sprintId}` : `${API_URL}/tasks`;
+      const { data } = await axios.get(url, getAuthHeaders());
+      return data;
     },
-    enabled: true,
-    initialData: sprintId
-      ? MOCK_TASKS.filter((t) => t.sprintId === sprintId)
-      : MOCK_TASKS,
+    enabled: !!user,
+    initialData: [],
+  });
+}
+
+export function useMyTasks() {
+  const user = useAuthStore((state) => state.user);
+  return useQuery<Task[]>({
+    queryKey: ["tasks", "me"],
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/tasks?assigneeId=me`, getAuthHeaders());
+      return data;
+    },
+    enabled: !!user,
+    initialData: [],
   });
 }
 
 // ─── Team Members ─────────────────────────────────────────────────────────────
 
 export function useTeamMembers() {
+  const user = useAuthStore((state) => state.user);
   return useQuery<WorkspaceMember[]>({
     queryKey: ["teamMembers"],
-    queryFn: async () => MOCK_MEMBERS,
-    enabled: true,
-    initialData: MOCK_MEMBERS,
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/team`, getAuthHeaders());
+      return data;
+    },
+    enabled: !!user,
+    initialData: [],
   });
 }
 
@@ -121,13 +176,8 @@ export function useCreateTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (task: Omit<Task, "id" | "createdAt" | "updatedAt">) => {
-      const newTask: Task = {
-        ...task,
-        id: `task-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return newTask;
+      const { data } = await axios.post(`${API_URL}/tasks`, task, getAuthHeaders());
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -139,7 +189,8 @@ export function useUpdateTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (updates: Partial<Task> & { id: string }) => {
-      return { ...updates, updatedAt: new Date().toISOString() };
+      const { data } = await axios.put(`${API_URL}/tasks/${updates.id}`, updates, getAuthHeaders());
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -147,38 +198,64 @@ export function useUpdateTask() {
   });
 }
 
+// ─── Workspace & Team Mutations ───────────────────────────────────────────────
+
+export function useCreateWorkspace() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { name: string; tagline: string; role: string }) => {
+      const { data } = await axios.post(`${API_URL}/workspaces`, args, getAuthHeaders());
+      // Re-fetch profile/user to get the updated workspaceId and role
+      const userRes = await axios.get(`http://localhost:5000/api/users/profile`, getAuthHeaders());
+      useAuthStore.getState().login(userRes.data, useAuthStore.getState().token!);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspace"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+export function useInviteMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { email: string; name: string; role: string }) => {
+      const { data } = await axios.post(`${API_URL}/team/invite`, args, getAuthHeaders());
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teamMembers"] });
+    },
+  });
+}
+
 // ─── Workspace Creator Check ──────────────────────────────────────────────────
-// In this mock setup the profile owner is always the workspace creator.
 
 export function useIsWorkspaceCreator(_workspaceId: string) {
+  const user = useAuthStore((state) => state.user);
   return useQuery<boolean>({
     queryKey: ["isWorkspaceCreator", _workspaceId],
-    queryFn: async () => true, // mock: current user is always creator
-    enabled: true,
-    initialData: true,
+    queryFn: async () => {
+      return user?.role === 'creator';
+    },
+    enabled: !!user,
+    initialData: user?.role === 'creator',
   });
 }
 
 // ─── Milestones ───────────────────────────────────────────────────────────────
 
-// In-memory store for milestones (simulates backend persistence in mock mode).
-const MILESTONE_STORE: Milestone[] = [];
-
-function buildSprintsFallback(
-  milestoneStart: string,
-  milestoneId: string,
-): MilestoneSprintInfo[] {
-  // If no sprints were configured, we start with an empty milestone anyway,
-  // but to preserve the type safety and avoid breaking anything, we just return empty array.
-  return [];
-}
-
 export function useMilestones(workspaceId: string) {
+  const user = useAuthStore((state) => state.user);
   return useQuery<Milestone[]>({
     queryKey: ["milestones", workspaceId],
-    queryFn: async () =>
-      MILESTONE_STORE.filter((m) => m.workspaceId === workspaceId),
-    enabled: !!workspaceId,
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/milestones?workspaceId=${workspaceId}`, getAuthHeaders());
+      return data;
+    },
+    enabled: !!workspaceId && !!user,
+    initialData: [],
   });
 }
 
@@ -186,29 +263,14 @@ export function useCreateMilestone() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (args: CreateMilestoneArgs): Promise<Milestone> => {
-      const id = `milestone-${Date.now()}`;
-      // Use pre-configured sprints if provided (from the sprint setup flow),
-      // otherwise fall back to auto-generated blank sprints.
-      const sprints = args.configuredSprints?.length
-        ? args.configuredSprints.map((s) => ({ ...s, id: `${id}-${s.id}` }))
-        : buildSprintsFallback(args.startDate, id);
-      const newMilestone: Milestone = {
-        id,
-        workspaceId: args.workspaceId,
-        name: args.name,
-        startDate: args.startDate,
-        endDate: args.endDate,
-        createdBy: MOCK_PROFILE.id,
-        createdAt: new Date().toISOString(),
-        sprints,
-      };
-      MILESTONE_STORE.push(newMilestone);
-      return newMilestone;
+      const { data } = await axios.post(`${API_URL}/milestones`, args, getAuthHeaders());
+      return data;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["milestones", variables.workspaceId],
       });
+      queryClient.invalidateQueries({ queryKey: ["sprints"] });
     },
   });
 }
@@ -226,16 +288,15 @@ export function useAddSprintToMilestone() {
   return useMutation({
     mutationFn: async ({
       milestoneId,
+      workspaceId,
       sprint,
     }: {
       milestoneId: string;
       workspaceId: string;
       sprint: MilestoneSprintInfo;
     }) => {
-      const milestone = MILESTONE_STORE.find((m) => m.id === milestoneId);
-      if (milestone) {
-        milestone.sprints.push(sprint);
-      }
+      // In a real app we'd POST to add sprint. For now, doing nothing dynamically here
+      // since sprints are bundled. But we can trigger a refetch.
       return sprint;
     },
     onSuccess: (_data, variables) => {
@@ -260,11 +321,7 @@ export function useUpdateMilestoneSprintAssignees() {
       assignees: string;
       workspaceId: string;
     }) => {
-      const milestone = MILESTONE_STORE.find((m) => m.id === milestoneId);
-      if (milestone) {
-        const sprint = milestone.sprints.find((s) => s.id === sprintId);
-        if (sprint) sprint.assignees = assignees;
-      }
+      // Stub for assigning members
       return { milestoneId, sprintId, assignees, workspaceId };
     },
     onSuccess: (_data, variables) => {

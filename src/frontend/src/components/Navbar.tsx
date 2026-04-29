@@ -1,9 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, ChevronDown, LayoutGrid, Milestone, Users } from "lucide-react";
+import { Bell, ChevronDown, LayoutGrid, Milestone, Users, User, Settings } from "lucide-react";
 import { useState } from "react";
-import { MOCK_PROFILE } from "../data/mockData";
 import { Avatar } from "./Avatar";
 import {
   MOCK_NOTIFICATIONS,
@@ -177,42 +176,34 @@ export function Navbar() {
             )}
           </div>
 
-          {/* User avatar */}
-          <button
-            type="button"
+          {/* Settings Button */}
+          <Link
+            to="/settings"
             className={cn(
-              "flex items-center gap-2 pl-2 pr-1 py-1 rounded-md hover:bg-muted transition-colors",
-              profileOpen && "bg-muted",
+              "p-2 rounded-md hover:bg-muted transition-colors mr-1",
+              currentPath === "/settings" && "bg-muted text-primary"
             )}
-            data-ocid="user-menu-btn"
-            aria-label="User menu"
-            aria-expanded={profileOpen}
-            onClick={() => {
-              setProfileOpen((v) => !v);
-              setNotifOpen(false);
-            }}
+            aria-label="Settings"
+            data-ocid="settings-nav-btn"
           >
-            <Avatar
-              initials={MOCK_PROFILE.initials}
-              name={MOCK_PROFILE.name}
-              size="sm"
-            />
-            <span className="text-sm font-medium text-foreground hidden sm:block">
-              {MOCK_PROFILE.name.split(" ")[0]}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
+            <Settings className="w-[18px] h-[18px] text-muted-foreground" />
+          </Link>
+
+          {/* Profile Button */}
+          <Link
+            to="/profile"
+            className={cn(
+              "p-2 rounded-md hover:bg-muted transition-colors mr-1",
+              currentPath === "/profile" && "bg-muted text-primary"
+            )}
+            aria-label="Profile"
+            data-ocid="profile-nav-btn"
+          >
+            <User className="w-[18px] h-[18px] text-muted-foreground" />
+          </Link>
+
         </div>
       </header>
-
-      {/* Profile panel overlay */}
-      {profileOpen && (
-        <ProfilePanel
-          isDark={isDark}
-          onToggleDark={toggleDark}
-          onClose={() => setProfileOpen(false)}
-        />
-      )}
     </>
   );
 }

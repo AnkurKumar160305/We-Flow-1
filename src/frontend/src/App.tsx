@@ -14,6 +14,8 @@ const DashboardPage = lazy(() => import("./pages/Dashboard"));
 const OnboardingPage = lazy(() => import("./pages/Onboarding"));
 const MilestonesPage = lazy(() => import("./pages/Milestones"));
 const TeamPage = lazy(() => import("./pages/Team"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 // ─── Page fallback ────────────────────────────────────────────────────────────
 function PageLoader() {
@@ -85,6 +87,26 @@ const teamRoute = createRoute({
   ),
 });
 
+const profileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/profile",
+  component: () => (
+    <Suspense fallback={<PageLoader />}>
+      <ProfilePage />
+    </Suspense>
+  ),
+});
+
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings",
+  component: () => (
+    <Suspense fallback={<PageLoader />}>
+      <SettingsPage />
+    </Suspense>
+  ),
+});
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -92,6 +114,8 @@ const routeTree = rootRoute.addChildren([
   onboardingRoute,
   milestonesRoute,
   teamRoute,
+  profileRoute,
+  settingsRoute,
 ]);
 
 const router = createRouter({ routeTree });

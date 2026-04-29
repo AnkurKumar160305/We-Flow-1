@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   CalendarDays,
@@ -316,6 +317,7 @@ interface CreateModalProps {
   workspaceId: string;
   onClose: () => void;
   onCreated: (m: Milestone) => void;
+  milestoneNumber: number;
 }
 
 type ModalPhase = "details" | "overview" | "sprint-form";
@@ -325,15 +327,18 @@ function CreateMilestoneModal({
   workspaceId,
   onClose,
   onCreated,
+  milestoneNumber,
 }: CreateModalProps) {
-  const [phase, setPhase] = useState<ModalPhase>("details");
   const [name, setName] = useState("");
-  const [startDate, setStartDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [expectedOutcome, setExpectedOutcome] = useState("");
+  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [endDate, setEndDate] = useState("");
 
   const [configuredSprints, setConfiguredSprints] = useState<SprintFormData[]>([]);
   const [currentOption, setCurrentOption] = useState<SprintDurationOption | null>(null);
 
+  const [phase, setPhase] = useState<ModalPhase>("details");
   const createMilestone = useCreateMilestone();
   const today = new Date().toISOString().split("T")[0];
 
@@ -431,6 +436,8 @@ function CreateMilestoneModal({
 
     const args: CreateMilestoneArgs = {
       name: name.trim(),
+      description: description.trim(),
+      expectedOutcome: expectedOutcome.trim(),
       startDate,
       endDate,
       workspaceId,
@@ -447,13 +454,13 @@ function CreateMilestoneModal({
   const isLastStep = isSprintPhase && sprintForm.step === 3;
 
   const modalTitle = isDetailsPhase
-    ? "Create Milestone"
+    ? "Create milestone"
     : isOverviewPhase
       ? "Add Sprints"
       : `Configure Sprint ${configuredSprints.length + 1}`;
 
   const modalSubtitle = isDetailsPhase
-    ? "Step 1 of 2 — Details"
+    ? "Set the specific goal for Startup-"
     : isOverviewPhase
       ? "Select duration for your sprints"
       : [
@@ -483,29 +490,43 @@ function CreateMilestoneModal({
       >
         {/* Title bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              {isSprintPhase ? (
-                <Rocket className="w-4 h-4 text-primary-foreground" />
-              ) : (
-                <Flag className="w-4 h-4 text-primary-foreground" />
-              )}
-            </div>
-            <div>
-              <h2 className="font-bold text-foreground font-display text-base leading-tight">
-                {modalTitle}
-              </h2>
-              <p className="text-xs text-muted-foreground">{modalSubtitle}</p>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-1 opacity-60">
+                (pre-sprint)
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+                  {isSprintPhase ? (
+                    <Rocket className="w-4 h-4 text-primary-foreground" />
+                  ) : (
+                    <Flag className="w-4 h-4 text-primary-foreground" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="font-bold text-foreground font-display text-lg leading-tight tracking-tight">
+                    {modalTitle}
+                  </h2>
+                  <p className="text-xs text-muted-foreground font-medium">{modalSubtitle}</p>
+                </div>
+              </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            data-ocid="create-milestone.close_button"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-4">
+            {isDetailsPhase && (
+              <div className="w-8 h-8 rounded-full border-2 border-primary/30 flex items-center justify-center text-primary font-bold text-base shadow-sm bg-primary/10">
+                {milestoneNumber}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+              data-ocid="create-milestone.close_button"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* ── DETAILS PHASE ───────────────────────────────────────────── */}
@@ -515,61 +536,103 @@ function CreateMilestoneModal({
               <div className="h-1 flex-1 rounded-full bg-primary" />
               <div className="h-1 flex-1 rounded-full bg-muted" />
             </div>
-            <div className="px-6 py-5 space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-semibold" htmlFor="milestone-name">
-                  Milestone Name
+            <div className="px-8 py-8 space-y-6">
+              {/* Goal Field */}
+              <div className="space-y-2">
+                <Label className="text-lg font-bold font-display text-foreground" htmlFor="milestone-name">
+                  Goal
                 </Label>
                 <Input
                   id="milestone-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Public Beta Launch"
-                  className="bg-background"
+                  placeholder="What is the main goal?"
+                  className="bg-background h-12 text-base rounded-xl border-border/60 focus:ring-primary/20"
                   autoFocus
                   data-ocid="create-milestone.name.input"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-semibold" htmlFor="start-date">
-                    Start Date
+
+              {/* Description Field */}
+              <div className="space-y-2">
+                <Label className="text-lg font-bold font-display text-foreground" htmlFor="milestone-desc">
+                  Description
+                </Label>
+                <Textarea
+                  id="milestone-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Tell us more about this milestone..."
+                  className="bg-background min-h-[80px] rounded-xl border-border/60 focus:ring-primary/20 resize-none"
+                  data-ocid="create-milestone.description.textarea"
+                />
+              </div>
+
+              {/* Expected Outcome Field */}
+              <div className="space-y-2">
+                <div className="flex flex-col">
+                  <Label className="text-lg font-bold font-display text-foreground" htmlFor="milestone-outcome">
+                    Expected Outcome
                   </Label>
-                  <Input
-                    id="start-date"
-                    type="date"
-                    value={startDate}
-                    min={today}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="bg-background"
-                    data-ocid="create-milestone.start-date.input"
-                  />
+                  <span className="text-xs text-muted-foreground font-medium mt-0.5">
+                    Explain the results or KPIs you expect.
+                  </span>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-semibold" htmlFor="end-date">
-                    End Date
-                  </Label>
-                  <Input
-                    id="end-date"
-                    type="date"
-                    value={endDate}
-                    min={startDate || today}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="bg-background"
-                    data-ocid="create-milestone.end-date.input"
-                  />
+                <Textarea
+                  id="milestone-outcome"
+                  value={expectedOutcome}
+                  onChange={(e) => setExpectedOutcome(e.target.value)}
+                  placeholder="e.g. 500 new users, beta ready..."
+                  className="bg-background min-h-[80px] rounded-xl border-border/60 focus:ring-primary/20 resize-none"
+                  data-ocid="create-milestone.outcome.textarea"
+                />
+              </div>
+
+              {/* Timeline (Start & End) */}
+              <div className="space-y-4 pt-2">
+                <Label className="text-lg font-bold font-display text-foreground">Timeline</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase" htmlFor="start-date">
+                      Start Date
+                    </Label>
+                    <Input
+                      id="start-date"
+                      type="date"
+                      value={startDate}
+                      min={today}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="bg-background h-11 rounded-xl border-border/60"
+                      data-ocid="create-milestone.start-date.input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase" htmlFor="end-date">
+                      End Date
+                    </Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      min={startDate || today}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="bg-background h-11 rounded-xl border-border/60"
+                      data-ocid="create-milestone.end-date.input"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <Button
-                className="w-full bg-primary hover:bg-primary/90 gap-2 mt-2"
-                onClick={handleMilestoneNext}
-                disabled={!name.trim() || !startDate || !endDate}
-                data-ocid="create-milestone.next_button"
-              >
-                Next: Add Sprints
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+              <div className="flex justify-center pt-6">
+                <Button
+                  className="w-full max-w-[200px] h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]"
+                  onClick={handleMilestoneNext}
+                  disabled={!name.trim() || !startDate || !endDate}
+                  data-ocid="create-milestone.next_button"
+                >
+                  Next.
+                </Button>
+              </div>
             </div>
           </>
         )}
@@ -799,11 +862,21 @@ export default function Milestones() {
     setActiveMilestoneId(m.id);
   }
 
+  const [hasPrompted, setHasPrompted] = useState(false);
+
   useEffect(() => {
     if (milestones.length > 0 && !activeMilestoneId) {
       setActiveMilestoneId(milestones[0].id);
     }
   }, [milestones, activeMilestoneId]);
+
+  // Auto-open modal for new creators who have no milestones yet
+  useEffect(() => {
+    if (!isLoading && milestones.length === 0 && isCreator && !hasPrompted) {
+      setShowModal(true);
+      setHasPrompted(true);
+    }
+  }, [isLoading, milestones.length, isCreator, hasPrompted]);
 
   const activeMilestone = milestones.find((m) => m.id === activeMilestoneId);
   const hasMultiple = milestones.length > 1;
@@ -916,6 +989,7 @@ export default function Milestones() {
           workspaceId={workspaceId}
           onClose={() => setShowModal(false)}
           onCreated={handleCreated}
+          milestoneNumber={milestones.length + 1}
         />
       )}
 

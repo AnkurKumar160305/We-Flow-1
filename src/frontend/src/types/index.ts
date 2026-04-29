@@ -102,12 +102,16 @@ export interface UserProfile {
   role: MemberRole;
   departmentId?: string;
   onboardingCompleted: boolean;
+  joinDate: string;
+  bio?: string;
 }
 
 export interface Workspace {
   id: string;
   name: string;
+  tagline?: string;
   description?: string;
+  vision?: string;
   members: WorkspaceMember[];
   departments: Department[];
   createdAt: string;
@@ -159,6 +163,8 @@ export interface Milestone {
   id: string;
   workspaceId: string;
   name: string;
+  description?: string;
+  expectedOutcome?: string;
   startDate: string; // ISO date string
   endDate: string; // ISO date string
   createdBy: string;
@@ -168,6 +174,8 @@ export interface Milestone {
 
 export interface CreateMilestoneArgs {
   name: string;
+  description?: string;
+  expectedOutcome?: string;
   startDate: string;
   endDate: string;
   workspaceId: string;

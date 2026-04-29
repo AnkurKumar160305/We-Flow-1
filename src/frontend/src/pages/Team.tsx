@@ -12,8 +12,95 @@ import {
 import { Avatar } from "../components/Avatar";
 import { DeptTag } from "../components/DeptTag";
 import { Layout } from "../components/Layout";
-import { useTeamHealth, useTeamMembers } from "../hooks/useBackend";
+import { useTeamHealth, useTeamMembers, useInviteMember } from "../hooks/useBackend";
 import type { WorkspaceMember } from "../types";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { X, Loader2 } from "lucide-react";
+
+function InviteMemberModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("Member");
+  const inviteMember = useInviteMember();
+
+  async function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) return;
+    await inviteMember.mutateAsync({ email, name, role });
+    onClose();
+  }
+
+  return (
+    <dialog
+      open
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent border-none w-full h-full m-0"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm cursor-default"
+        onClick={onClose}
+      />
+      <div className="relative z-10 w-full max-w-md bg-card rounded-xl shadow-2xl border border-border p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Invite Member</h2>
+            <p className="text-sm text-muted-foreground mt-1">Add a co-creator or member to your team.</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleInvite} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="invite-email">Email</Label>
+            <Input
+              id="invite-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="colleague@startup.com"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="invite-name">Name (Optional)</Label>
+            <Input
+              id="invite-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Alex Johnson"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="invite-role">Role</Label>
+            <select
+              id="invite-role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="Co-creator">Co-creator</option>
+              <option value="Admin">Admin</option>
+              <option value="Member">Member</option>
+              <option value="Viewer">Viewer</option>
+            </select>
+          </div>
+          <div className="pt-4 flex gap-3">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={inviteMember.isPending}>
+              {inviteMember.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send Invite"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+  );
+}
 
 function MemberCard({ member }: { member: WorkspaceMember }) {
   const completionRate =
@@ -106,8 +193,9 @@ function MemberCard({ member }: { member: WorkspaceMember }) {
 }
 
 export default function Team() {
-  const { data: members = [] } = useTeamMembers();
+  const { data: members = [], isLoading } = useTeamMembers();
   const { data: health } = useTeamHealth();
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   const onlineCount = members.filter((m) => m.isOnline).length;
 
@@ -128,6 +216,7 @@ export default function Team() {
             <Button
               className="bg-primary hover:bg-primary/90 gap-1.5"
               size="sm"
+              onClick={() => setShowInviteModal(true)}
               data-ocid="invite-member-btn"
             >
               <UserPlus className="w-4 h-4" />
@@ -199,13 +288,28 @@ export default function Team() {
 
         {/* Member grid */}
         <div className="max-w-5xl mx-auto px-6 py-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {members.map((m) => (
-              <MemberCard key={m.id} member={m} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : members.length === 0 ? (
+            <div className="text-center py-20 border-2 border-dashed border-border rounded-xl">
+              <p className="text-muted-foreground text-sm">No team members yet.</p>
+              <Button variant="link" className="text-primary mt-2" onClick={() => setShowInviteModal(true)}>
+                Invite your first member
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {members.map((m) => (
+                <MemberCard key={m.id} member={m} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {showInviteModal && <InviteMemberModal onClose={() => setShowInviteModal(false)} />}
     </Layout>
   );
 }

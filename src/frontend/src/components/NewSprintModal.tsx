@@ -643,6 +643,12 @@ export function SprintStep3({
               />
             );
           })}
+          {selectedMembers.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-border rounded-xl text-center">
+              <p className="text-sm font-medium text-muted-foreground">No members selected</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">You can proceed without assigning tasks for now.</p>
+            </div>
+          )}
         </div>
       </ScrollArea>
     </div>
@@ -734,10 +740,6 @@ export function useSprintFormState(defaultDeadline: string) {
       setGoalError("");
       setStep(2);
     } else if (step === 2) {
-      if (selectedMemberIds.length === 0) {
-        setTeamError("Please add at least one team member.");
-        return false;
-      }
       setTeamError("");
       setStep(3);
     }

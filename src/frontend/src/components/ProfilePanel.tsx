@@ -8,7 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { LogOut, Moon, Shield, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { MOCK_PROFILE, MOCK_WORKSPACE } from "../data/mockData";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuthStore } from "../hooks/useAuthStore";
+import { MOCK_WORKSPACE } from "../data/mockData";
+import { useProfile } from "../hooks/useBackend";
 
 interface ProfilePanelProps {
   isDark: boolean;
@@ -37,7 +40,11 @@ export function ProfilePanel({
   onToggleDark,
   onClose,
 }: ProfilePanelProps) {
-  const [fullName, setFullName] = useState(MOCK_PROFILE.name);
+  const { data: profile } = useProfile();
+  const { logout } = useAuthStore();
+  const navigate = useNavigate();
+  
+  const [fullName, setFullName] = useState(profile?.name || "Guest");
   const [title, setTitle] = useState("Founder & CEO");
   const [bio, setBio] = useState(
     "Building WeFlow to help teams ship faster with less friction.",
@@ -114,11 +121,11 @@ export function ProfilePanel({
           <div className="flex items-center gap-4">
             {/* Large avatar */}
             <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-display font-bold text-2xl flex-shrink-0 shadow-md">
-              {MOCK_PROFILE.initials}
+              {profile?.initials}
             </div>
             <div>
               <p className="text-base font-bold font-display text-foreground leading-tight">
-                {MOCK_PROFILE.name}
+                {profile?.name}
               </p>
               <p className="text-sm text-muted-foreground mt-0.5">{title}</p>
               <div className="mt-1.5">
@@ -252,7 +259,7 @@ export function ProfilePanel({
               <div>
                 <Label className="text-xs mb-1.5 block">Email</Label>
                 <div className="h-8 px-3 flex items-center rounded-md border border-input bg-muted text-sm text-muted-foreground">
-                  {MOCK_PROFILE.email}
+                  {profile?.email}
                 </div>
               </div>
               <div>
@@ -314,6 +321,11 @@ export function ProfilePanel({
               variant="destructive"
               size="sm"
               className="w-full"
+              onClick={() => {
+                logout();
+                onClose();
+                navigate({ to: "/onboarding" });
+              }}
               data-ocid="profile.sign_out_button"
             >
               <LogOut className="w-4 h-4 mr-2" />
