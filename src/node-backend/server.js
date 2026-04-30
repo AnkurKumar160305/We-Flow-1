@@ -51,9 +51,14 @@ app.use("/api/", limiter);
 app.use(express.json());
 
 // Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/data", dataRoutes);
+const router = express.Router();
+router.use("/auth", authRoutes);
+router.use("/users", userRoutes);
+router.use("/data", dataRoutes);
+
+// Mount the router on both /api and / to be safe for Vercel routing
+app.use("/api", router);
+app.use("/", router);
 
 // Root endpoint for testing
 app.get("/", (req, res) => {
