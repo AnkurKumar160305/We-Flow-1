@@ -367,7 +367,7 @@ function Step3({
 // Step 4 removed as per new flow
 
 // ─── Main Onboarding page ─────────────────────────────────────────────────────
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export default function Onboarding() {
   const navigate = useNavigate();
