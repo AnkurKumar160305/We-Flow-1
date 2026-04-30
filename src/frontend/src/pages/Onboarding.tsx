@@ -367,6 +367,7 @@ function Step3({
 // Step 4 removed as per new flow
 
 // ─── Main Onboarding page ─────────────────────────────────────────────────────
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -437,14 +438,14 @@ export default function Onboarding() {
       setIsLoading(true);
       try {
         if (isSignIn) {
-          const { data } = await axios.post("http://localhost:5000/api/auth/login", {
+          const { data } = await axios.post(`${BASE_URL}/api/auth/login`, {
             email: accountData.email,
             password: accountData.password,
           });
           login(data, data.token);
           navigate({ to: "/dashboard" });
         } else {
-          const { data } = await axios.post("http://localhost:5000/api/auth/register", {
+          const { data } = await axios.post(`${BASE_URL}/api/auth/register`, {
             name: accountData.fullName,
             email: accountData.email,
             password: accountData.password,
@@ -493,7 +494,7 @@ export default function Onboarding() {
   async function handleGoogleSuccess(credentialResponse: any) {
     try {
       setIsLoading(true);
-      const { data } = await axios.post("http://localhost:5000/api/auth/google", {
+      const { data } = await axios.post(`${BASE_URL}/api/auth/google`, {
         token: credentialResponse.credential,
       });
       login(data, data.token);

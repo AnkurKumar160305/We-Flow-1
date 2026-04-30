@@ -20,7 +20,8 @@ import type {
   WorkspaceMember,
 } from "../types";
 
-const API_URL = "http://localhost:5000/api/data";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = `${BASE_URL}/api/data`;
 
 const getAuthHeaders = () => {
   const token = useAuthStore.getState().token;
@@ -206,7 +207,7 @@ export function useCreateWorkspace() {
     mutationFn: async (args: { name: string; tagline: string; role: string }) => {
       const { data } = await axios.post(`${API_URL}/workspaces`, args, getAuthHeaders());
       // Re-fetch profile/user to get the updated workspaceId and role
-      const userRes = await axios.get(`http://localhost:5000/api/users/profile`, getAuthHeaders());
+      const userRes = await axios.get(`${BASE_URL}/api/users/profile`, getAuthHeaders());
       useAuthStore.getState().login(userRes.data, useAuthStore.getState().token!);
       return data;
     },
