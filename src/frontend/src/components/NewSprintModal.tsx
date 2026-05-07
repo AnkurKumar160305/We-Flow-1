@@ -245,14 +245,19 @@ export function SprintStep2({
   selectedIds,
   onToggle,
   error,
+  members = [],
 }: {
   selectedIds: string[];
   onToggle: (id: string) => void;
   error: string;
+  members?: WorkspaceMember[];
 }) {
+  const acceptedMembers = members.filter((m) => m.status === "accepted");
+
+
   const [search, setSearch] = useState("");
 
-  const filtered = MOCK_MEMBERS.filter(
+  const filtered = acceptedMembers.filter(
     (m) =>
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       (m.departmentId ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -261,9 +266,12 @@ export function SprintStep2({
         .includes(search.toLowerCase()),
   );
 
-  const selectedMembers = MOCK_MEMBERS.filter((m) =>
+
+  const selectedMembers = acceptedMembers.filter((m) =>
     selectedIds.includes(m.id),
   );
+
+
 
   return (
     <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
@@ -611,13 +619,16 @@ export function SprintStep3({
   onAssign,
   onUnassign,
   onAddNewTask,
+  allTasks = MOCK_TASKS,
 }: {
   selectedMembers: WorkspaceMember[];
   assignments: MemberTaskAssignment[];
   onAssign: (memberId: string, taskId: string) => void;
   onUnassign: (memberId: string, taskId: string) => void;
   onAddNewTask: (memberId: string, taskName: string) => void;
+  allTasks?: Task[];
 }) {
+
   return (
     <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
       <p className="text-sm text-muted-foreground">
@@ -657,7 +668,8 @@ export function SprintStep3({
 
 // ─── Shared Sprint Form State Hook ────────────────────────────────────────────
 
-export function useSprintFormState(defaultDeadline: string) {
+export function useSprintFormState(defaultDeadline: string, members: WorkspaceMember[] = MOCK_MEMBERS) {
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [step1, setStep1] = useState<Step1Data>({
     goal: "",
@@ -751,9 +763,10 @@ export function useSprintFormState(defaultDeadline: string) {
     else if (step === 3) setStep(2);
   };
 
-  const selectedMembers = MOCK_MEMBERS.filter((m) =>
+  const selectedMembers = members.filter((m) =>
     selectedMemberIds.includes(m.id),
   );
+
 
   return {
     step,

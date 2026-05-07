@@ -8,308 +8,226 @@ import {
   Clock,
   TrendingUp,
   UserPlus,
+  Mail,
+  User,
+  Shield,
+  Trash2,
+  Edit2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Avatar } from "../components/Avatar";
-import { DeptTag } from "../components/DeptTag";
 import { Layout } from "../components/Layout";
-import { useTeamHealth, useTeamMembers, useInviteMember } from "../hooks/useBackend";
+import { useTeamMembers, useInviteMember, useDeleteTeamMember, useUpdateTeamMember } from "../hooks/useBackend";
 import type { WorkspaceMember } from "../types";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 
-function InviteMemberModal({ onClose }: { onClose: () => void }) {
+// ─── Attractive Add Member Bar ──────────────────────────────────────────────
+
+function AddMemberBar() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Member");
+  const [jobTitle, setJobTitle] = useState("");
+  const [role, setRole] = useState("co-creator");
   const inviteMember = useInviteMember();
 
-  async function handleInvite(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSendInvite() {
     if (!email) return;
-    await inviteMember.mutateAsync({ email, name, role });
-    onClose();
+    await inviteMember.mutateAsync({ email, name, role, jobTitle } as any);
+    setEmail("");
+    setName("");
+    setJobTitle("");
+    setRole("co-creator");
   }
 
   return (
-    <dialog
-      open
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent border-none w-full h-full m-0"
-    >
-      <button
-        type="button"
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm cursor-default"
-        onClick={onClose}
-      />
-      <div className="relative z-10 w-full max-w-md bg-card rounded-xl shadow-2xl border border-border p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-foreground">Invite Member</h2>
-            <p className="text-sm text-muted-foreground mt-1">Add a co-creator or member to your team.</p>
-          </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <form onSubmit={handleInvite} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="invite-email">Email</Label>
-            <Input
-              id="invite-email"
-              type="email"
+    <div className="w-full px-6 pt-2 pb-6">
+      <div className="flex flex-col gap-4">
+        <span className="text-sm font-black text-orange-600/80 uppercase tracking-[0.15em] ml-2">Add Team Member</span>
+        <div className="flex items-center gap-5">
+          <div className="flex-1 relative group">
+            <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="colleague@startup.com"
-              required
-              autoFocus
+              placeholder="Email address"
+              className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all placeholder:text-gray-400 shadow-sm"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="invite-name">Name (Optional)</Label>
-            <Input
-              id="invite-name"
+          <div className="flex-1 relative group">
+            <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Alex Johnson"
+              placeholder="Full name"
+              className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all placeholder:text-gray-400 shadow-sm"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="invite-role">Role</Label>
+          <div className="flex-1 relative group">
+            <input
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="Role (e.g. Designer)"
+              className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all placeholder:text-gray-400 shadow-sm"
+            />
+          </div>
+          <div className="w-[240px] relative group">
             <select
-              id="invite-role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all appearance-none cursor-pointer shadow-sm"
             >
-              <option value="Co-creator">Co-creator</option>
-              <option value="Admin">Admin</option>
-              <option value="Member">Member</option>
-              <option value="Viewer">Viewer</option>
+              <option value="co-creator">co-creator</option>
+              <option value="creator">creator</option>
             </select>
+            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+              <ChevronRight className="w-4 h-4 rotate-90" />
+            </div>
           </div>
-          <div className="pt-4 flex gap-3">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={inviteMember.isPending}>
-              {inviteMember.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send Invite"}
-            </Button>
-          </div>
-        </form>
+          <button
+            onClick={handleSendInvite}
+            disabled={inviteMember.isPending || !email}
+            className="h-14 px-10 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl font-bold text-[16px] shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:translate-y-0"
+          >
+            {inviteMember.isPending ? "Inviting..." : "Send Invite"}
+          </button>
+        </div>
       </div>
-    </dialog>
+      <div className="mt-12 h-[1px] bg-gradient-to-r from-transparent via-orange-500/30 to-transparent w-full" />
+    </div>
   );
 }
 
-function MemberCard({ member }: { member: WorkspaceMember }) {
-  const completionRate =
-    member.tasksCompleted &&
-    member.tasksCompleted + (member.tasksInProgress ?? 0) > 0
-      ? Math.round(
-          (member.tasksCompleted /
-            (member.tasksCompleted + (member.tasksInProgress ?? 0))) *
-            100,
-        )
-      : 0;
+// ─── Attractive Member Row ──────────────────────────────────────────────────
+
+function MemberRow({ member, index }: { member: WorkspaceMember, index: number }) {
+  const deleteMember = useDeleteTeamMember();
 
   return (
-    <div
-      className="bg-card rounded-2xl border border-border p-5 hover:shadow-elevated transition-smooth"
-      data-ocid={`member-card-${member.id}`}
-    >
-      <div className="flex items-start gap-3 mb-4">
-        <Avatar
-          initials={member.initials}
-          name={member.name}
-          size="lg"
-          isOnline={member.isOnline}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold text-foreground text-sm truncate">
-              {member.name}
-            </h3>
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-[10px] px-1.5 py-0",
-                member.role === "admin" || member.role === "owner"
-                  ? "text-primary border-primary/40 bg-primary/5"
-                  : "text-muted-foreground",
-              )}
-            >
-              {member.role}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {member.email}
-          </p>
-          {member.departmentId && (
-            <div className="mt-1.5">
-              <DeptTag departmentId={member.departmentId} />
-            </div>
-          )}
-        </div>
+    <div className="flex items-center gap-6 py-5 px-6 rounded-[1.5rem] bg-white hover:bg-orange-50/40 shadow-sm hover:shadow-md transition-all group/row border border-gray-100 hover:border-orange-200">
+      <div className="flex items-center gap-4 w-[200px] flex-shrink-0">
+        <span className="text-[15px] font-black text-gray-300 w-6 tabular-nums">{String(index + 1).padStart(2, '0')}</span>
+        <span className="text-[15px] font-bold text-gray-900 truncate group-hover/row:text-orange-600 transition-colors">{member.name}</span>
+      </div>
+      
+      <div className="w-[240px] flex-shrink-0">
+        <span className="text-[14px] font-semibold text-gray-600 italic truncate block">{(member as any).jobTitle || "ui/ux-graphic designer"}</span>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="bg-muted/50 rounded-lg p-2.5 text-center">
-          <p className="text-base font-bold text-foreground">
-            {member.tasksCompleted ?? 0}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Completed</p>
-        </div>
-        <div className="bg-muted/50 rounded-lg p-2.5 text-center">
-          <p className="text-base font-bold text-foreground">
-            {member.tasksInProgress ?? 0}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            In Progress
-          </p>
-        </div>
+      <div className="w-[140px] flex-shrink-0">
+        <span className="text-[14px] font-bold text-gray-700 capitalize">{member.role}</span>
       </div>
 
-      {/* Completion bar */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-muted-foreground">
-            Completion rate
-          </span>
-          <span className="text-[10px] font-semibold text-primary">
-            {completionRate}%
-          </span>
-        </div>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
-            style={{ width: `${completionRate}%` }}
-          />
-        </div>
+      <div className="flex-1 min-w-0">
+        <span className="text-[14px] font-medium text-gray-500 truncate block">{member.email}</span>
+      </div>
+
+      <div className="w-[120px] flex-shrink-0 flex items-center gap-2">
+        <div className={cn(
+          "w-2 h-2 rounded-full",
+          member.status === "accepted" ? "bg-green-500 animate-pulse" : "bg-orange-400"
+        )} />
+        <span className={cn(
+          "text-[13px] font-bold uppercase tracking-wider",
+          member.status === "accepted" ? "text-green-600" : "text-orange-500"
+        )}>
+          {member.status || 'pending'}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <button className="h-10 px-6 bg-white border border-orange-200 text-orange-600 rounded-xl font-bold text-[13px] hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all shadow-sm">
+          Edit
+        </button>
+        <button 
+          className="h-10 px-6 bg-white border border-red-200 text-red-500 rounded-xl font-bold text-[13px] hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm"
+          onClick={() => {
+            if (confirm(`Are you sure you want to remove ${member.name} from the team?`)) {
+              deleteMember.mutate(member.id);
+            }
+          }}
+          disabled={deleteMember.isPending}
+        >
+          {deleteMember.isPending ? "..." : "Delete"}
+        </button>
       </div>
     </div>
   );
 }
 
+// ─── Main Page ───────────────────────────────────────────────────────────────
+
 export default function Team() {
   const { data: members = [], isLoading } = useTeamMembers();
-  const { data: health } = useTeamHealth();
-  const [showInviteModal, setShowInviteModal] = useState(false);
-
-  const onlineCount = members.filter((m) => m.isOnline).length;
+  const navigate = useNavigate();
 
   return (
     <Layout>
-      <div className="flex-1 overflow-y-auto bg-background">
-        {/* Header */}
-        <div className="bg-card border-b border-border px-6 py-5">
-          <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold font-display text-foreground">
-                Team
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {members.length} members · {onlineCount} online now
-              </p>
-            </div>
-            <Button
-              className="bg-primary hover:bg-primary/90 gap-1.5"
-              size="sm"
-              onClick={() => setShowInviteModal(true)}
-              data-ocid="invite-member-btn"
-            >
-              <UserPlus className="w-4 h-4" />
-              Invite Member
-            </Button>
-          </div>
-        </div>
+      <div className="flex-1 flex flex-col h-full bg-[#FBFBFC] overflow-hidden p-6 md:p-10">
+        <div className="max-w-7xl mx-auto w-full flex flex-col h-full bg-white rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden relative">
+          
+          {/* Header Decoration */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-300 via-orange-500 to-orange-300" />
 
-        {/* Health summary */}
-        <div className="bg-muted/30 border-b border-border">
-          <div className="max-w-5xl mx-auto px-6 py-4">
-            <div className="flex items-center gap-6 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">
-                  Team Health:
-                </span>
-                <span
-                  className={cn(
-                    "text-sm font-bold",
-                    (health?.overallScore ?? 0) >= 70
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-orange-600 dark:text-orange-400",
-                  )}
-                >
-                  {health?.overallScore ?? 74}/100
-                </span>
-              </div>
-              {[
-                {
-                  icon: CheckCircle2,
-                  label: "On Track",
-                  value: health?.onTrackCount ?? 7,
-                  color: "text-green-600 dark:text-green-400",
-                },
-                {
-                  icon: AlertTriangle,
-                  label: "Blocked",
-                  value: health?.blockedCount ?? 1,
-                  color: "text-red-500 dark:text-red-400",
-                },
-                {
-                  icon: Clock,
-                  label: "Velocity",
-                  value: `${health?.completionRate ?? 25}%`,
-                  color: "text-primary",
-                },
-                {
-                  icon: TrendingUp,
-                  label: "Trend",
-                  value:
-                    health?.velocityTrend === "up"
-                      ? "↑ Up"
-                      : health?.velocityTrend === "down"
-                        ? "↓ Down"
-                        : "→ Stable",
-                  color: "text-green-600 dark:text-green-400",
-                },
-              ].map(({ icon: Icon, label, value, color }) => (
-                <div key={label} className="flex items-center gap-1.5 text-sm">
-                  <Icon className={cn("w-4 h-4", color)} />
-                  <span className="text-muted-foreground">{label}:</span>
-                  <span className={cn("font-semibold", color)}>{value}</span>
+          <div className="flex-1 overflow-y-auto px-10 py-10">
+            {/* Attractive Add Member Bar */}
+            <AddMemberBar />
+
+            <div className="px-10 mb-3 flex items-center gap-6">
+               <div className="w-[200px] pl-2 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Name</div>
+               <div className="w-[240px] text-[11px] font-bold text-gray-400 uppercase tracking-widest">Job Title</div>
+               <div className="w-[140px] text-[11px] font-bold text-gray-400 uppercase tracking-widest">Role</div>
+               <div className="flex-1 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Email Address</div>
+               <div className="w-[120px] text-[11px] font-bold text-gray-400 uppercase tracking-widest">Status</div>
+               <div className="w-[200px]"></div> {/* spacer for buttons */}
+            </div>
+
+            {/* Members List */}
+            <div className="space-y-3 px-4">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-32 gap-4">
+                  <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Loading Team...</p>
                 </div>
-              ))}
+              ) : members.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-32 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <UserPlus className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <p className="text-lg font-bold text-gray-400">Your team is empty</p>
+                  <p className="text-sm text-gray-400 mt-1">Add your first member to get started.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {members.map((m, idx) => (
+                    <MemberRow key={m.id} member={m} index={idx} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Member grid */}
-        <div className="max-w-5xl mx-auto px-6 py-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : members.length === 0 ? (
-            <div className="text-center py-20 border-2 border-dashed border-border rounded-xl">
-              <p className="text-muted-foreground text-sm">No team members yet.</p>
-              <Button variant="link" className="text-primary mt-2" onClick={() => setShowInviteModal(true)}>
-                Invite your first member
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {members.map((m) => (
-                <MemberCard key={m.id} member={m} />
-              ))}
-            </div>
-          )}
+          {/* Premium Bottom Navigation */}
+          <div className="p-10 border-t border-gray-50 flex items-center justify-center gap-8 bg-gray-50/20">
+            <button 
+              className="group h-14 px-12 border-2 border-gray-200 text-gray-500 rounded-[1.25rem] font-black text-[14px] uppercase tracking-widest flex items-center gap-3 hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50/50 transition-all"
+              onClick={() => navigate({ to: '/onboarding' })}
+            >
+              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              Back
+            </button>
+            <button 
+              className="group h-14 px-14 bg-gray-900 text-white rounded-[1.25rem] font-black text-[14px] uppercase tracking-widest flex items-center gap-3 hover:bg-orange-600 hover:shadow-xl hover:shadow-orange-500/20 transition-all active:scale-95"
+              onClick={() => navigate({ to: '/dashboard' })}
+            >
+              Continue
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
         </div>
       </div>
-
-      {showInviteModal && <InviteMemberModal onClose={() => setShowInviteModal(false)} />}
     </Layout>
   );
 }

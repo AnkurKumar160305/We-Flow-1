@@ -120,9 +120,45 @@ export function ProfilePanel({
 
           <div className="flex items-center gap-4">
             {/* Large avatar */}
-            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-display font-bold text-2xl flex-shrink-0 shadow-md">
-              {profile?.initials}
+          <div className="flex items-center gap-4">
+            {/* Large avatar - Editable */}
+            <div 
+              className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-display font-bold text-2xl flex-shrink-0 shadow-md overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all relative group"
+              onClick={() => document.getElementById('profile-logo-upload')?.click()}
+            >
+              {profile?.avatarUrl ? (
+                <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                profile?.initials
+              )}
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera className="w-6 h-6 text-white" />
+              </div>
+              <input 
+                id="profile-logo-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onloadend = async () => {
+                    const base64 = reader.result;
+                    try {
+                      await axios.put(`${BASE_URL}/api/auth/profile`, { profile_logo: base64 }, {
+                        headers: { Authorization: `Bearer ${useAuthStore.getState().token}` }
+                      });
+                      window.location.reload();
+                    } catch (err) {
+                      console.error("Logo update failed", err);
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
             </div>
+
             <div>
               <p className="text-base font-bold font-display text-foreground leading-tight">
                 {profile?.name}
@@ -150,37 +186,43 @@ export function ProfilePanel({
                 >
                   Full Name
                 </Label>
-                <Input
+                 <Input
                   id="profile-fullname"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="h-8 text-sm"
                   data-ocid="profile.full_name.input"
                 />
+
+
               </div>
               <div>
                 <Label htmlFor="profile-title" className="text-xs mb-1.5 block">
                   Title
                 </Label>
-                <Input
+                 <Input
                   id="profile-title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="h-8 text-sm"
                   data-ocid="profile.title.input"
                 />
+
+
               </div>
               <div>
                 <Label htmlFor="profile-bio" className="text-xs mb-1.5 block">
                   Bio
                 </Label>
-                <Textarea
+                 <Textarea
                   id="profile-bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   className="text-sm min-h-[72px] resize-none"
                   data-ocid="profile.bio.textarea"
                 />
+
+
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -196,13 +238,15 @@ export function ProfilePanel({
                   >
                     Job Role
                   </Label>
-                  <Input
+                   <Input
                     id="profile-jobrole"
                     value={jobRole}
                     onChange={(e) => setJobRole(e.target.value)}
                     className="h-8 text-sm"
                     data-ocid="profile.job_role.input"
                   />
+
+
                 </div>
               </div>
             </div>
@@ -281,25 +325,29 @@ export function ProfilePanel({
                 <Label htmlFor="ws-name" className="text-xs mb-1.5 block">
                   Workspace Name
                 </Label>
-                <Input
+                 <Input
                   id="ws-name"
                   value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   className="h-8 text-sm"
                   data-ocid="profile.workspace_name.input"
                 />
+
+
               </div>
               <div>
                 <Label htmlFor="ws-tagline" className="text-xs mb-1.5 block">
                   Tagline
                 </Label>
-                <Input
+                 <Input
                   id="ws-tagline"
                   value={tagline}
                   onChange={(e) => setTagline(e.target.value)}
                   className="h-8 text-sm"
                   data-ocid="profile.workspace_tagline.input"
                 />
+
+
               </div>
               <Button
                 size="sm"

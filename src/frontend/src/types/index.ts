@@ -68,7 +68,9 @@ export interface TaskBucket {
   taskIds: string[];
 }
 
-export type MemberRole = "owner" | "admin" | "member" | "viewer";
+export type MemberRole = "owner" | "admin" | "member" | "viewer" | "creator" | "co-creator";
+export type MemberStatus = "pending" | "accepted";
+
 
 export interface WorkspaceMember {
   id: string;
@@ -78,6 +80,8 @@ export interface WorkspaceMember {
   departmentId?: string;
   avatarUrl?: string;
   initials: string;
+  status?: MemberStatus;
+
   tasksCompleted?: number;
   tasksInProgress?: number;
   isOnline?: boolean;
@@ -97,10 +101,12 @@ export interface UserProfile {
   name: string;
   email: string;
   avatarUrl?: string;
+  profileLogoUrl?: string;
   initials: string;
   workspaceId: string;
   role: MemberRole;
   departmentId?: string;
+
   onboardingCompleted: boolean;
   joinDate: string;
   bio?: string;
@@ -110,14 +116,17 @@ export interface Workspace {
   id: string;
   name: string;
   tagline?: string;
+  logoUrl?: string;
   description?: string;
   vision?: string;
+
   members: WorkspaceMember[];
   departments: Department[];
   createdAt: string;
 }
 
-export type OnboardingStep = 1 | 2 | 3 | 4;
+export type OnboardingStep = 1 | 2 | 3 | 4 | 5; // 1: Profile, 2: Workspace, 3: Team, 4: Milestone, 5: Dashboard (complete)
+
 
 export interface OnboardingState {
   step: OnboardingStep;
@@ -169,8 +178,10 @@ export interface Milestone {
   endDate: string; // ISO date string
   createdBy: string;
   createdAt: string;
+  assigned_members?: string[]; // emails
   sprints: MilestoneSprintInfo[];
 }
+
 
 export interface CreateMilestoneArgs {
   name: string;

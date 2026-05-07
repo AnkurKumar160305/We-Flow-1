@@ -29,6 +29,11 @@ const milestoneSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    assigned_members: [
+      {
+        type: String, // Storing emails as per requirement "assigned_members (only accepted)" and "user_email" in TeamMember
+      }
+    ],
   },
   {
     timestamps: true,

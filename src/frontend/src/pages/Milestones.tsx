@@ -5,21 +5,30 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  Archive,
+  Calendar,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   ClipboardList,
   Copy,
   Flag,
   Link2,
   Loader2,
+  MoreVertical,
   Plus,
   Rocket,
+  User,
   Users,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Layout } from "../components/Layout";
+import { Avatar } from "../components/Avatar";
+import { useAuthStore } from "../hooks/useAuthStore";
+
 import {
   SprintStep1,
   SprintStep2,
@@ -38,7 +47,9 @@ import {
   useMilestones,
   useUpdateMilestoneSprintAssignees,
   useWorkspace,
+  useTeamMembers,
 } from "../hooks/useBackend";
+
 import type {
   CreateMilestoneArgs,
   Milestone,
@@ -154,17 +165,29 @@ function SprintCard({
           <Users className="w-3.5 h-3.5" />
           Assignees
         </Label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {sprint.assignees.split(',').filter(Boolean).map((a, idx) => {
+            const [name, role] = a.split('/').map(s => s.trim());
+            return (
+              <div key={idx} className="flex items-center gap-2 bg-muted/50 border border-border rounded-full pl-1 pr-2.5 py-1 text-[10px] font-medium animate-in fade-in zoom-in-95 duration-300">
+                <Avatar initials={name.substring(0,2).toUpperCase()} size="xs" />
+                <div className="flex flex-col leading-tight">
+                  <span>{name}</span>
+                  <span className="text-[8px] text-muted-foreground">{role}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
         <Input
           value={assignees}
           onChange={(e) => handleAssigneesChange(e.target.value)}
-          placeholder="e.g. Alex Chen / Engineer, Maya Patel / Designer"
-          className="text-xs h-8 bg-background"
+          placeholder="Add member (Name / Role)"
+          className="text-xs h-8 bg-background border-dashed"
           data-ocid={`sprint-assignees.item.${index + 1}`}
         />
-        <p className="text-[10px] text-muted-foreground">
-          Use Name / Role format, comma-separated for multiple
-        </p>
       </div>
+
 
       {/* Invite link */}
       <div className="space-y-1.5">
@@ -338,7 +361,11 @@ function CreateMilestoneModal({
   const [configuredSprints, setConfiguredSprints] = useState<SprintFormData[]>([]);
   const [currentOption, setCurrentOption] = useState<SprintDurationOption | null>(null);
 
+  const { data: allMembers = [] } = useTeamMembers();
+  const acceptedMembers = allMembers.filter(m => m.status === "accepted");
+
   const [phase, setPhase] = useState<ModalPhase>("details");
+
   const createMilestone = useCreateMilestone();
   const today = new Date().toISOString().split("T")[0];
 
@@ -364,8 +391,9 @@ function CreateMilestoneModal({
         
   const currentSprintMaxDeadline = getMaxDeadlineFromStart(currentSprintStart);
 
-  const sprintForm = useSprintFormState(currentSprintDeadline);
+  const sprintForm = useSprintFormState(currentSprintDeadline, acceptedMembers);
   const resetSprintForm = sprintForm.reset;
+
 
   useEffect(() => {
     if (phase === "sprint-form") {
@@ -374,7 +402,7 @@ function CreateMilestoneModal({
   }, [phase, currentSprintDeadline, resetSprintForm]);
 
   function handleMilestoneNext() {
-    if (!name.trim() || !startDate || !endDate) return;
+    if (!name.trim() || !startDate) return;
     setPhase("overview");
   }
 
@@ -419,7 +447,8 @@ function CreateMilestoneModal({
       nextD.setDate(nextD.getDate() + 1);
       trackStart = nextD.toISOString().slice(0, 10);
       
-      const members = MOCK_MEMBERS.filter((m) => sd.memberIds.includes(m.id));
+      const members = acceptedMembers.filter((m) => sd.memberIds.includes(m.id));
+
       return {
         id: `sprint-${i + 1}`,
         name: `Sprint ${i + 1}`,
@@ -434,12 +463,22 @@ function CreateMilestoneModal({
       };
     });
 
+    // Calculate final endDate from sprints or default to 30 days later
+    let finalEndDate = endDate;
+    if (finalSprints.length > 0) {
+      finalEndDate = finalSprints[finalSprints.length - 1].endDate;
+    } else {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + 30);
+      finalEndDate = d.toISOString().slice(0, 10);
+    }
+
     const args: CreateMilestoneArgs = {
       name: name.trim(),
       description: description.trim(),
       expectedOutcome: expectedOutcome.trim(),
       startDate,
-      endDate,
+      endDate: finalEndDate,
       workspaceId,
       configuredSprints: finalSprints,
     };
@@ -532,22 +571,23 @@ function CreateMilestoneModal({
         {/* ── DETAILS PHASE ───────────────────────────────────────────── */}
         {isDetailsPhase && (
           <>
-            <div className="flex px-6 pt-4 gap-2">
-              <div className="h-1 flex-1 rounded-full bg-primary" />
-              <div className="h-1 flex-1 rounded-full bg-muted" />
+            <div className="flex px-8 pt-4 gap-2">
+              <div className="h-1 flex-1 rounded-full bg-gradient-to-r from-orange-400 to-orange-500 shadow-sm" />
+              <div className="h-1 flex-1 rounded-full bg-orange-100/50" />
             </div>
+
             <div className="px-8 py-8 space-y-6">
               {/* Goal Field */}
               <div className="space-y-2">
-                <Label className="text-lg font-bold font-display text-foreground" htmlFor="milestone-name">
-                  Goal
+                <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2" htmlFor="milestone-name">
+                  Goal <span className="text-orange-500">*</span>
                 </Label>
                 <Input
                   id="milestone-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="What is the main goal?"
-                  className="bg-background h-12 text-base rounded-xl border-border/60 focus:ring-primary/20"
+                  placeholder="What is the main goal? (e.g. Beta Launch)"
+                  className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
                   autoFocus
                   data-ocid="create-milestone.name.input"
                 />
@@ -555,7 +595,7 @@ function CreateMilestoneModal({
 
               {/* Description Field */}
               <div className="space-y-2">
-                <Label className="text-lg font-bold font-display text-foreground" htmlFor="milestone-desc">
+                <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2" htmlFor="milestone-desc">
                   Description
                 </Label>
                 <Textarea
@@ -563,18 +603,18 @@ function CreateMilestoneModal({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Tell us more about this milestone..."
-                  className="bg-background min-h-[80px] rounded-xl border-border/60 focus:ring-primary/20 resize-none"
+                  className="w-full min-h-[100px] rounded-2xl border border-gray-200 bg-gray-50/50 p-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm resize-y"
                   data-ocid="create-milestone.description.textarea"
                 />
               </div>
 
               {/* Expected Outcome Field */}
               <div className="space-y-2">
-                <div className="flex flex-col">
-                  <Label className="text-lg font-bold font-display text-foreground" htmlFor="milestone-outcome">
+                <div className="flex flex-col ml-2">
+                  <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest" htmlFor="milestone-outcome">
                     Expected Outcome
                   </Label>
-                  <span className="text-xs text-muted-foreground font-medium mt-0.5">
+                  <span className="text-[10px] text-gray-400 font-medium mt-0.5">
                     Explain the results or KPIs you expect.
                   </span>
                 </div>
@@ -582,19 +622,18 @@ function CreateMilestoneModal({
                   id="milestone-outcome"
                   value={expectedOutcome}
                   onChange={(e) => setExpectedOutcome(e.target.value)}
-                  placeholder="e.g. 500 new users, beta ready..."
-                  className="bg-background min-h-[80px] rounded-xl border-border/60 focus:ring-primary/20 resize-none"
+                  placeholder="e.g. 500 new users, product market fit..."
+                  className="w-full min-h-[100px] rounded-2xl border border-gray-200 bg-gray-50/50 p-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm resize-y"
                   data-ocid="create-milestone.outcome.textarea"
                 />
               </div>
 
-              {/* Timeline (Start & End) */}
+              {/* Timeline (Start Only) */}
               <div className="space-y-4 pt-2">
-                <Label className="text-lg font-bold font-display text-foreground">Timeline</Label>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase" htmlFor="start-date">
-                      Start Date
+                  <div className="space-y-2">
+                    <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2" htmlFor="start-date">
+                      Start Date <span className="text-orange-500">*</span>
                     </Label>
                     <Input
                       id="start-date"
@@ -602,35 +641,21 @@ function CreateMilestoneModal({
                       value={startDate}
                       min={today}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="bg-background h-11 rounded-xl border-border/60"
+                      className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
                       data-ocid="create-milestone.start-date.input"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase" htmlFor="end-date">
-                      End Date
-                    </Label>
-                    <Input
-                      id="end-date"
-                      type="date"
-                      value={endDate}
-                      min={startDate || today}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="bg-background h-11 rounded-xl border-border/60"
-                      data-ocid="create-milestone.end-date.input"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-center pt-6">
+              <div className="flex justify-end pt-6">
                 <Button
-                  className="w-full max-w-[200px] h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]"
+                  className="h-12 px-10 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-[1.25rem] shadow-lg shadow-orange-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0"
                   onClick={handleMilestoneNext}
-                  disabled={!name.trim() || !startDate || !endDate}
-                  data-ocid="create-milestone.next_button"
+                  disabled={!name.trim() || !startDate}
+                  data-ocid="create-milestone.next-button"
                 >
-                  Next.
+                  Next step &rarr;
                 </Button>
               </div>
             </div>
@@ -640,59 +665,68 @@ function CreateMilestoneModal({
         {/* ── OVERVIEW PHASE ───────────────────────────────────────────── */}
         {isOverviewPhase && (
           <>
-            <div className="flex px-6 pt-4 gap-2">
-              <div className="h-1 flex-1 rounded-full bg-primary" />
-              <div className="h-1 flex-1 rounded-full bg-primary" />
+            <div className="flex px-8 pt-4 gap-2">
+              <div className="h-1 flex-1 rounded-full bg-gradient-to-r from-orange-400 to-orange-500 shadow-sm" />
+              <div className="h-1 flex-1 rounded-full bg-gradient-to-r from-orange-400 to-orange-500 shadow-sm" />
             </div>
-            <div className="px-6 py-5 space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-foreground">
+            <div className="px-8 py-5 space-y-6">
+              <div className="space-y-3">
+                <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-1">
                   Configured Sprints ({configuredSprints.length})
                 </p>
                 {configuredSprints.length === 0 ? (
-                  <p className="text-xs text-muted-foreground border-2 border-dashed border-border p-4 rounded-xl text-center">
-                    No sprints added yet. Click an option below to start.
-                  </p>
+                  <div className="flex flex-col items-center justify-center p-8 bg-orange-50/50 border-2 border-dashed border-orange-200 rounded-2xl">
+                    <Rocket className="w-8 h-8 text-orange-300 mb-2" />
+                    <p className="text-[13px] font-bold text-orange-600/60 text-center">
+                      No sprints added yet.<br/>Click an option below to start.
+                    </p>
+                  </div>
                 ) : (
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent">
                     {configuredSprints.map((s, i) => (
                       <div
                         key={i}
-                        className="bg-card border border-border p-3 rounded-lg flex items-center justify-between"
+                        className="bg-white border border-gray-100 shadow-sm p-4 rounded-[1.25rem] flex items-center justify-between group hover:border-orange-200 hover:shadow-md transition-all"
                       >
-                        <div>
-                          <p className="text-sm font-semibold font-display">Sprint {i + 1}</p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[200px]">{s.goal}</p>
+                        <div className="flex gap-4 items-center">
+                          <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-black text-sm border border-orange-100 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                            S{i + 1}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-gray-900 truncate max-w-[180px]">{s.goal}</p>
+                            <p className="text-[12px] font-medium text-gray-400 truncate max-w-[180px]">{s.description || "No description"}</p>
+                          </div>
                         </div>
-                        <Badge variant="outline">{s.deadline}</Badge>
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider text-orange-600 border-orange-200 bg-orange-50/50">
+                          {s.deadline}
+                        </Badge>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              
               <div className="pt-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1 mb-3">
                   Add Sprint
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <Button
                     variant="outline"
-                    className="flex-1 border-primary/40 text-primary hover:bg-primary/5 hover:border-primary/60"
+                    className="flex-1 h-12 rounded-2xl border-orange-200 text-orange-600 font-bold hover:bg-orange-50 hover:border-orange-400 shadow-sm"
                     onClick={() => handleAddSprint(2)}
                   >
                     + 2 Days
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1 border-primary/40 text-primary hover:bg-primary/5 hover:border-primary/60"
+                    className="flex-1 h-12 rounded-2xl border-orange-200 text-orange-600 font-bold hover:bg-orange-50 hover:border-orange-400 shadow-sm"
                     onClick={() => handleAddSprint(4)}
                   >
                     + 4 Days
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1 border-primary/40 text-primary hover:bg-primary/5 hover:border-primary/60"
+                    className="flex-1 h-12 rounded-2xl border-gray-200 text-gray-600 font-bold hover:bg-gray-50 hover:border-gray-400 shadow-sm"
                     onClick={() => handleAddSprint("custom")}
                   >
                     + Custom
@@ -700,23 +734,23 @@ function CreateMilestoneModal({
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-border mt-2">
+              <div className="flex gap-3 pt-6">
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 h-12 rounded-[1.25rem] border-gray-200 text-gray-600 font-bold hover:bg-gray-50"
                   onClick={() => setPhase("details")}
                 >
-                  Back
+                  &larr; Back
                 </Button>
                 <Button
-                  className="flex-1 bg-primary hover:bg-primary/90 gap-2"
+                  className="flex-1 h-12 px-6 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-[1.25rem] shadow-lg shadow-orange-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 gap-2"
                   onClick={handleCreateMilestone}
                   disabled={configuredSprints.length === 0 || createMilestone.isPending}
                 >
                   {createMilestone.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    <Flag className="w-4 h-4" />
+                    <Flag className="w-5 h-5" />
                   )}
                   Finish Milestone
                 </Button>
@@ -751,8 +785,10 @@ function CreateMilestoneModal({
                   selectedIds={sprintForm.selectedMemberIds}
                   onToggle={sprintForm.toggleMember}
                   error={sprintForm.teamError}
+                  members={acceptedMembers}
                 />
               )}
+
               {sprintForm.step === 3 && (
                 <SprintStep3
                   selectedMembers={sprintForm.selectedMembers}
@@ -764,33 +800,31 @@ function CreateMilestoneModal({
               )}
             </div>
 
-            <div className="flex items-center justify-between px-8 py-5 border-t border-border bg-muted/20 mt-4">
+            <div className="flex items-center justify-between px-8 py-5 border-t border-gray-100 bg-gray-50/50 mt-4 rounded-b-2xl">
               <Button
                 type="button"
-                variant={sprintForm.step === 1 ? "ghost" : "outline"}
-                size="sm"
+                variant="outline"
+                className="h-12 px-6 rounded-[1.25rem] border-gray-200 text-gray-600 font-bold hover:bg-gray-50"
                 onClick={handleSprintPhaseBack}
               >
-                ← Back
+                &larr; Back
               </Button>
 
               {!isLastStep ? (
                 <Button
                   type="button"
-                  size="sm"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 font-semibold px-5"
+                  className="h-12 px-8 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-[1.25rem] shadow-lg shadow-orange-500/20 transition-all hover:-translate-y-0.5 gap-2"
                   onClick={handleSprintNext}
                 >
-                  Next <ChevronRight className="w-4 h-4" />
+                  Next <ChevronRight className="w-5 h-5" />
                 </Button>
               ) : (
                 <Button
                   type="button"
-                  size="sm"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 gap-2 shadow-md"
+                  className="h-12 px-8 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-[1.25rem] shadow-lg shadow-orange-500/20 transition-all hover:-translate-y-0.5 gap-2"
                   onClick={handleSprintFinish}
                 >
-                  Save Sprint <Check className="w-4 h-4" />
+                  Save Sprint <Check className="w-5 h-5" />
                 </Button>
               )}
             </div>
@@ -855,6 +889,16 @@ export default function Milestones() {
   const [activeMilestoneId, setActiveMilestoneId] = useState<string | null>(
     null,
   );
+  const [activeTab, setActiveTab] = useState<"active" | "create" | "upcoming" | "archived">("active");
+  const [expandedMilestoneId, setExpandedMilestoneId] = useState<string | null>(null);
+
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newDeadline, setNewDeadline] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+
+  const { user } = useAuthStore();
+  const createMilestone = useCreateMilestone();
+  const firstName = user?.name?.split(" ")[0] || "Hira";
   const addSprintToMilestone = useAddSprintToMilestone();
 
   function handleCreated(m: Milestone) {
@@ -906,103 +950,246 @@ export default function Milestones() {
 
   return (
     <Layout>
-      <div className="flex-1 overflow-y-auto bg-background flex flex-col">
-        {/* Header */}
-        <div className="bg-card border-b border-border px-6 py-4 flex-shrink-0">
-          <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold font-display text-foreground flex items-center gap-2">
-                <Flag className="w-5 h-5 text-primary" />
-                Milestones
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Track major product goals across sprints
-              </p>
+      <div className="flex-1 overflow-y-auto bg-[#F9F9FB] flex flex-col font-sans w-full">
+        {/* ── Header ── */}
+        <div className="px-6 py-8 flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[28px] font-bold text-[#1A1A1A] flex items-center gap-2">
+              Hi, {firstName} <span className="animate-bounce">👋</span>
+            </h1>
+            <div className="w-5 h-5 rounded-full border border-green-500 flex items-center justify-center">
+              <Check className="w-3 h-3 text-green-500" />
             </div>
-            {isCreator && (
-              <Button
-                size="sm"
-                className="bg-primary hover:bg-primary/90 gap-1.5 flex-shrink-0"
-                onClick={() => setShowModal(true)}
-                data-ocid="new-milestone.primary_button"
-              >
-                <Plus className="w-4 h-4" />
-                New Milestone
-              </Button>
-            )}
           </div>
         </div>
 
-        {/* Milestone tabs — only when there are multiple */}
-        {hasMultiple && (
-          <div className="bg-muted/30 border-b border-border px-6 py-2 flex-shrink-0">
-            <div className="max-w-3xl mx-auto flex items-center gap-1.5 overflow-x-auto">
-              {milestones.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setActiveMilestoneId(m.id)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
-                    activeMilestoneId === m.id
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                  data-ocid={`milestone-tab.${m.id}`}
-                >
-                  {m.name}
-                </button>
-              ))}
+        {/* ── Tabs Navigation ── */}
+        <div className="px-6 mb-8 w-full">
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-1.5 flex items-center justify-between shadow-sm w-full">
+            <button
+              onClick={() => setActiveTab("active")}
+              className={cn(
+                "flex items-center gap-3 px-6 py-3.5 rounded-xl transition-all min-w-max",
+                activeTab === "active" ? "bg-[#F3F4FF] border border-[#6366F1]/20" : "hover:bg-gray-50"
+              )}
+            >
+              <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center transition-colors", activeTab === "active" ? "text-[#6366F1]" : "text-gray-400")}>
+                <Flag className="w-6 h-6" />
+              </div>
+              <div className="text-left">
+                <p className={cn("text-sm font-bold leading-tight", activeTab === "active" ? "text-[#6366F1]" : "text-gray-400")}>Milestone</p>
+                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-tight">Track Your Goal</p>
+              </div>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setActiveTab("create")}
+                className={cn(
+                  "flex items-center gap-3 px-6 py-3.5 rounded-xl transition-all min-w-max",
+                  activeTab === "create" ? "bg-[#F3F4FF] border border-[#6366F1]/20" : "hover:bg-gray-50"
+                )}
+              >
+                <Plus className={cn("w-6 h-6", activeTab === "create" ? "text-green-500" : "text-gray-400")} />
+                <span className={cn("text-sm font-bold", activeTab === "create" ? "text-[#1A1A1A]" : "text-gray-400")}>Create New</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("upcoming")}
+                className={cn(
+                  "flex items-center gap-3 px-6 py-3.5 rounded-xl transition-all min-w-max",
+                  activeTab === "upcoming" ? "bg-[#F3F4FF] border border-[#6366F1]/20" : "hover:bg-gray-50"
+                )}
+              >
+                <Calendar className={cn("w-5 h-5", activeTab === "upcoming" ? "text-orange-500" : "text-gray-400")} />
+                <span className={cn("text-sm font-bold", activeTab === "upcoming" ? "text-[#1A1A1A]" : "text-gray-400")}>Upcoming</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("archived")}
+                className={cn(
+                  "flex items-center gap-3 px-6 py-3.5 rounded-xl transition-all min-w-max", activeTab === "archived" ? "bg-[#F3F4FF] border border-[#6366F1]/20" : "hover:bg-gray-50"
+                )}
+              >
+                <Archive className={cn("w-5 h-5", activeTab === "archived" ? "text-blue-500" : "text-gray-400")} />
+                <span className={cn("text-sm font-bold", activeTab === "archived" ? "text-[#1A1A1A]" : "text-gray-400")}>Archived</span>
+              </button>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Content area */}
-        <div className="flex-1 flex flex-col">
-          {isLoading ? (
-            <div
-              className="flex-1 flex items-center justify-center"
-              data-ocid="milestones.loading_state"
-            >
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        {/* ── Content Area ── */}
+        <div className="px-6 pb-10 flex-1 w-full">
+          {activeTab === "active" && (
+            <div className="w-full">
+              <h2 className="text-[22px] font-bold text-[#6366F1] mb-6 border-b-2 border-[#6366F1] w-max pb-1">Active Milestone</h2>
+              <div className="space-y-4">
+                {isLoading ? (
+                  <div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-[#6366F1]" /></div>
+                ) : milestones.length === 0 ? (
+                  <div className="bg-white border border-[#E5E5E5] rounded-3xl p-12 text-center shadow-sm">
+                    <p className="text-gray-500 font-medium">No active milestones found.</p>
+                    <Button onClick={() => setActiveTab("create")} variant="link" className="text-[#6366F1] font-bold mt-2">Create your first milestone &rarr;</Button>
+                  </div>
+                ) : (
+                  milestones.map((m) => (
+                    <div key={m.id} className="bg-white border border-[#E5E5E5] rounded-[24px] overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                      <div 
+                        className="p-5 flex items-center justify-between cursor-pointer group"
+                        onClick={() => setExpandedMilestoneId(expandedMilestoneId === m.id ? null : m.id)}
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="text-gray-400 group-hover:text-[#6366F1] transition-colors">
+                            {expandedMilestoneId === m.id ? <ChevronDown className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
+                          </div>
+                          <h3 className="text-[17px] font-bold text-[#1A1A1A] min-w-[200px]">{m.name}</h3>
+                          <p className="text-sm font-medium text-gray-500 flex-1">
+                            {daysBetween(m.startDate, m.endDate)} days — {new Date(m.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toLowerCase()}
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-6">
+                          <Badge variant="outline" className="bg-[#F3F4FF] text-[#6366F1] border-none px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-tight shadow-sm">
+                            {m.sprints.length} Sprints
+                          </Badge>
+                          {new Date(m.endDate) < new Date() ? (
+                            <Badge variant="outline" className="bg-[#F0FDF4] text-[#15803D] border-none px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-tight shadow-sm">
+                              Completed
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-[#FFFBEB] text-[#B45309] border-none px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-tight shadow-sm">
+                              Pending
+                            </Badge>
+                          )}
+                          <div className="h-8 w-px bg-gray-200 mx-2" />
+                          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-[#6366F1] hover:bg-[#F3F4FF] transition-all">
+                            <MoreVertical className="w-6 h-6" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {expandedMilestoneId === m.id && (
+                        <div className="px-16 pb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="bg-[#F9F9FB] border border-[#E5E5E5] rounded-[20px] p-6 space-y-4">
+                            <div>
+                              <p className="text-sm font-bold text-[#1A1A1A] mb-2">Goal Description</p>
+                              <p className="text-sm text-gray-600 leading-relaxed italic">
+                                {m.description || "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}
+                              </p>
+                            </div>
+                            <div className="pt-2">
+                              <p className="text-sm font-bold text-[#1A1A1A] mb-1">Team</p>
+                              <p className="text-sm text-gray-600 font-medium">Team {m.sprints.length + 10}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          ) : milestones.length === 0 ? (
-            <EmptyMilestones
-              isCreator={isCreator}
-              onCreate={() => setShowModal(true)}
-            />
-          ) : activeMilestone ? (
-            <div className="max-w-3xl mx-auto w-full px-6 py-6">
-              <MilestoneDetail
-                milestone={activeMilestone}
-                workspaceId={workspaceId}
-                onNewSprint={() => setShowSprintModal(true)}
-              />
+          )}
+
+          {activeTab === "create" && (
+            <div className="w-full bg-white border border-[#E5E5E5] rounded-[32px] p-12 shadow-sm">
+               <div className="flex flex-col items-center justify-center text-center mb-8">
+                <span className="text-[11px] font-black text-orange-500 uppercase tracking-[0.4em] mb-3">
+                  New Milestone
+                </span>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tight">
+                  Define Your Goal
+                </h2>
+                <p className="text-sm font-medium text-gray-500 mt-3 max-w-sm">
+                  What is the primary objective for your startup this month?
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2">
+                    Milestone Name <span className="text-orange-500">*</span>
+                  </label>
+                  <input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. Beta Launch"
+                    className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    placeholder="What does success look like for this milestone?"
+                    className="w-full min-h-[140px] rounded-2xl border border-gray-200 bg-gray-50/50 p-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm resize-y"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2">
+                    Deadline
+                  </label>
+                  <input
+                    type="date"
+                    value={newDeadline}
+                    onChange={(e) => setNewDeadline(e.target.value)}
+                    className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
+                  />
+                </div>
+
+                <Button 
+                  onClick={async () => {
+                    if (!newName.trim()) return;
+                    await createMilestone.mutateAsync({
+                      name: newName,
+                      description: newDescription,
+                      startDate: new Date().toISOString().split('T')[0],
+                      endDate: newDeadline,
+                      workspaceId,
+                      configuredSprints: [], // As per simple creation flow
+                    });
+                    setNewName("");
+                    setNewDescription("");
+                    setActiveTab("active");
+                  }}
+                  disabled={createMilestone.isPending || !newName.trim()}
+                  className="w-full h-14 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all mt-4"
+                >
+                  {createMilestone.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Milestone"}
+                </Button>
+              </div>
             </div>
-          ) : null}
+          )}
+
+          {(activeTab === "upcoming" || activeTab === "archived") && (
+            <div className="flex flex-col items-center justify-center py-24 bg-white border border-[#E5E5E5] rounded-[32px] shadow-sm">
+              <div className="w-20 h-20 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
+                {activeTab === "upcoming" ? <Calendar className="w-10 h-10 text-orange-300" /> : <Archive className="w-10 h-10 text-blue-300" />}
+              </div>
+              <p className="text-lg font-bold text-gray-900 capitalize">No {activeTab} milestones</p>
+              <p className="text-sm text-gray-500 mt-1">There are currently no items in this category.</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Create Milestone modal (includes inline sprint config phase) */}
-      {showModal && (
-        <CreateMilestoneModal
-          workspaceId={workspaceId}
-          onClose={() => setShowModal(false)}
-          onCreated={handleCreated}
-          milestoneNumber={milestones.length + 1}
+      {/* Keep the existing modals but they won't be triggered by the new UI for now */}
+      {showSprintModal && (
+         <NewSprintModal
+          open={showSprintModal}
+          onClose={() => setShowSprintModal(false)}
+          onAdd={handleAddSprint}
+          nextSprintNumber={(activeMilestone?.sprints.length ?? 0) + 1}
+          milestoneDeadline={
+            activeMilestone ? new Date(activeMilestone.endDate) : undefined
+          }
         />
       )}
-
-      {/* New Sprint modal — for adding extra sprints to existing milestones */}
-      <NewSprintModal
-        open={showSprintModal}
-        onClose={() => setShowSprintModal(false)}
-        onAdd={handleAddSprint}
-        nextSprintNumber={(activeMilestone?.sprints.length ?? 0) + 1}
-        milestoneDeadline={
-          activeMilestone ? new Date(activeMilestone.endDate) : undefined
-        }
-      />
     </Layout>
   );
 }

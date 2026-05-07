@@ -16,6 +16,8 @@ const MilestonesPage = lazy(() => import("./pages/Milestones"));
 const TeamPage = lazy(() => import("./pages/Team"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const AcceptInvitePage = lazy(() => import("./pages/AcceptInvite"));
+
 
 // ─── Page fallback ────────────────────────────────────────────────────────────
 function PageLoader() {
@@ -107,6 +109,17 @@ const settingsRoute = createRoute({
   ),
 });
 
+const acceptInviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accept-invite/$token",
+  component: () => (
+    <Suspense fallback={<PageLoader />}>
+      <AcceptInvitePage />
+    </Suspense>
+  ),
+});
+
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -116,7 +129,9 @@ const routeTree = rootRoute.addChildren([
   teamRoute,
   profileRoute,
   settingsRoute,
+  acceptInviteRoute,
 ]);
+
 
 const router = createRouter({ routeTree });
 

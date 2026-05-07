@@ -33,6 +33,9 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Workspace",
     },
+    profile_logo: {
+      type: String,
+    },
   },
   {
     timestamps: true,

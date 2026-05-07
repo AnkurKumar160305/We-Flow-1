@@ -5,11 +5,11 @@ interface OnboardingProgressProps {
   totalSteps?: number;
 }
 
-const STEP_LABELS = ["Account", "Profile", "Workspace", "Team"];
+const STEP_LABELS = ["Account", "Profile", "Workspace", "Team", "Milestone"];
 
 export function OnboardingProgress({
   currentStep,
-  totalSteps = 4,
+  totalSteps = 5,
 }: OnboardingProgressProps) {
   return (
     <div className="flex items-center justify-center gap-2 mb-8">

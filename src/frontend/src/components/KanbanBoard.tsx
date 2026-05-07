@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, TrendingUp } from "lucide-react";
+import { Maximize2, Minimize2, Plus, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import type { Sprint, Task, TaskStatus, WorkspaceMember } from "../types";
 import { AddTaskModal } from "./AddTaskModal";
@@ -16,6 +16,8 @@ interface KanbanBoardProps {
   onAddTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt">) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => void;
   onDeleteTask: (taskId: string) => void;
+  isFullScreen?: boolean;
+  onToggleFullScreen?: () => void;
 }
 
 const COLUMNS: TaskStatus[] = ["todo", "doing", "done", "blocked"];
@@ -30,6 +32,8 @@ export function KanbanBoard({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
+  isFullScreen = false,
+  onToggleFullScreen,
 }: KanbanBoardProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addTaskStatus, setAddTaskStatus] = useState<TaskStatus | null>(null);
@@ -98,6 +102,21 @@ export function KanbanBoard({
             Momentum {momentum}%
           </span>
         </div>
+        
+        {/* Full screen toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={onToggleFullScreen}
+          title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+        >
+          {isFullScreen ? (
+            <Minimize2 className="w-4 h-4" />
+          ) : (
+            <Maximize2 className="w-4 h-4" />
+          )}
+        </Button>
 
         {/* New task button */}
         <Button

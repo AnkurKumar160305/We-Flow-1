@@ -14,6 +14,9 @@ const workspaceSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    logo: {
+      type: String,
+    },
   },
   {
     timestamps: true,

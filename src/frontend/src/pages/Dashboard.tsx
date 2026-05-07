@@ -6,6 +6,7 @@ import { NewSprintModal } from "../components/NewSprintModal";
 import { RightSidebar } from "../components/RightSidebar";
 import { MOCK_MEMBERS, MOCK_SPRINTS, MOCK_TASKS } from "../data/mockData";
 import { useTaskStore } from "../hooks/useTaskStore";
+import { useTeamMembers, useTasks, useSprints } from "../hooks/useBackend";
 import type { Sprint, Task, TaskStatus, WorkspaceMember } from "../types";
 
 // ─── Sprint state hook ────────────────────────────────────────────────────────
@@ -36,13 +37,22 @@ function useSprintStore(initial: Sprint[]) {
 // ─── Dashboard page ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const { data: realSprints = [] } = useSprints();
   const { sprints, activeSprint, setActiveSprint, addSprint } =
-    useSprintStore(MOCK_SPRINTS);
-  const { tasks, addTask, moveTask, updateTask, deleteTask } =
-    useTaskStore(MOCK_TASKS);
+    useSprintStore(realSprints.length > 0 ? realSprints : MOCK_SPRINTS);
+  
+  const { data: allTasks = [] } = useTasks();
+  const { tasks: storeTasks, addTask, moveTask, updateTask, deleteTask } =
+    useTaskStore(allTasks.length > 0 ? allTasks : MOCK_TASKS);
+  
+  const { data: members = [] } = useTeamMembers();
   const [newSprintOpen, setNewSprintOpen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  const tasks = allTasks.length > 0 ? allTasks : storeTasks;
 
   const currentSprint = sprints.find((s) => s.id === activeSprint);
+
 
   const sprintTasks = tasks.filter((t) => t.sprintId === activeSprint);
   const shippedCount = sprintTasks.filter(
@@ -89,12 +99,14 @@ export default function Dashboard() {
         className="flex flex-1 overflow-hidden"
         style={{ height: "calc(100vh - 56px - 41px)" }}
       >
-        <LeftSidebar
-          sprints={sprints}
-          activeSprint={activeSprint}
-          onSelectSprint={setActiveSprint}
-          onNewSprint={() => setNewSprintOpen(true)}
-        />
+        {!isFullScreen && (
+          <LeftSidebar
+            sprints={sprints}
+            activeSprint={activeSprint}
+            onSelectSprint={setActiveSprint}
+            onNewSprint={() => setNewSprintOpen(true)}
+          />
+        )}
 
         <main
           className="flex-1 flex flex-col overflow-hidden bg-background"
@@ -102,21 +114,25 @@ export default function Dashboard() {
         >
           <KanbanBoard
             tasks={tasks}
-            members={MOCK_MEMBERS}
+            members={members.length > 0 ? members : MOCK_MEMBERS}
             activeSprint={currentSprint}
             onMoveTask={handleMoveTask}
             onAddTask={handleAddTask}
             onUpdateTask={updateTask}
             onDeleteTask={deleteTask}
+            isFullScreen={isFullScreen}
+            onToggleFullScreen={() => setIsFullScreen(!isFullScreen)}
           />
         </main>
 
-        <RightSidebar
-          members={MOCK_MEMBERS}
-          activeSprint={currentSprint}
-          shippedCount={shippedCount}
-          totalCount={sprintTasks.length}
-        />
+        {!isFullScreen && (
+          <RightSidebar
+            members={members.length > 0 ? members : MOCK_MEMBERS}
+            activeSprint={currentSprint}
+            shippedCount={shippedCount}
+            totalCount={sprintTasks.length}
+          />
+        )}
       </div>
 
       <NewSprintModal

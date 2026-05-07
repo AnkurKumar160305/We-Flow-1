@@ -31,7 +31,13 @@ export default function ProfilePage() {
   if (!profile) return null;
   const memberData = MOCK_MEMBERS.find(m => m.id === profile.id);
   
+  const roleLabel = profile.role === "admin" ? "Creator" : "Co-creator";
+
   const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState(profile.name || "");
+  const [tempName, setTempName] = useState(profile.name || "");
+  const [role, setRole] = useState(roleLabel);
+  const [tempRole, setTempRole] = useState(roleLabel);
   const [bio, setBio] = useState(profile.bio || "");
   const [tempBio, setTempBio] = useState(profile.bio || "");
 
@@ -42,7 +48,6 @@ export default function ProfilePage() {
   });
 
   const department = DEPARTMENTS.find((d) => d.id === profile.departmentId);
-  const roleLabel = profile.role === "admin" ? "Creator" : "Co-creator";
   
   // Calculate stats for the bottom section
   const totalTasks = MOCK_TASKS.filter(t => t.assigneeId === profile.id).length;
@@ -53,11 +58,15 @@ export default function ProfilePage() {
   const recentTasks = MOCK_TASKS.filter(t => t.assigneeId === profile.id).slice(0, 3);
 
   function handleSave() {
+    setName(tempName);
+    setRole(tempRole);
     setBio(tempBio);
     setIsEditing(false);
   }
 
   function handleCancel() {
+    setTempName(name);
+    setTempRole(role);
     setTempBio(bio);
     setIsEditing(false);
   }
@@ -101,13 +110,30 @@ export default function ProfilePage() {
               
               {/* Right: Details (Name, Role, Joining Date) */}
               <div className="flex-1 py-2 space-y-4">
-                <div>
-                  <h1 className="text-4xl font-bold font-display text-foreground">
-                    {profile.name} <span className="text-muted-foreground font-normal mx-2">-</span> 
-                    <span className="text-primary text-2xl font-semibold inline-flex items-center">
-                      {roleLabel}
-                    </span>
-                  </h1>
+                 <div>
+                  {isEditing ? (
+                    <div className="flex flex-col gap-3">
+                      <Input 
+                        value={tempName}
+                        onChange={(e) => setTempName(e.target.value)}
+                        className="text-4xl font-bold font-display h-14"
+                        placeholder="Your Name"
+                      />
+                      <Input 
+                        value={tempRole}
+                        onChange={(e) => setTempRole(e.target.value)}
+                        className="text-2xl font-semibold text-primary h-10"
+                        placeholder="Your Role (e.g. Creator)"
+                      />
+                    </div>
+                  ) : (
+                    <h1 className="text-4xl font-bold font-display text-foreground">
+                      {name} <span className="text-muted-foreground font-normal mx-2">-</span> 
+                      <span className="text-primary text-2xl font-semibold inline-flex items-center">
+                        {role}
+                      </span>
+                    </h1>
+                  )}
                 </div>
                 
                 <div className="space-y-3">

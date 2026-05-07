@@ -3,6 +3,12 @@ import Sprint from "../models/Sprint.js";
 import Task from "../models/Task.js";
 import Workspace from "../models/Workspace.js";
 import User from "../models/User.js";
+import TeamMember from "../models/TeamMember.js";
+import Invitation from "../models/Invitation.js";
+import crypto from "crypto";
+import { sendInviteEmail } from "../utils/mailer.js";
+
+
 
 // --- Workspaces ---
 export const createWorkspace = async (req, res) => {
@@ -19,12 +25,18 @@ export const createWorkspace = async (req, res) => {
     // Update the creator's user record
     const user = await User.findById(req.user._id);
     user.workspaceId = workspace._id;
-    if (role) {
-      user.role = role.toLowerCase();
-    } else {
-      user.role = 'creator';
-    }
+    user.role = 'creator'; // Enforce creator role as per requirement
     await user.save();
+
+    // Also add as a TeamMember
+    await TeamMember.create({
+      workspaceId: workspace._id,
+      user_email: user.email,
+      name: user.name,
+      role: 'creator',
+      status: 'accepted',
+    });
+
 
     res.status(201).json({ ...workspace.toObject(), id: workspace._id.toString() });
   } catch (error) {
@@ -38,18 +50,15 @@ export const getTeamMembers = async (req, res) => {
     if (!req.user.workspaceId) {
       return res.json([]);
     }
-    const members = await User.find({ workspaceId: req.user.workspaceId }).lean();
+    const members = await TeamMember.find({ workspaceId: req.user.workspaceId }).lean();
     
     const formatted = members.map(m => ({
       id: m._id.toString(),
       name: m.name,
-      email: m.email,
-      role: m.role || 'member',
-      avatarUrl: m.avatar,
+      email: m.user_email,
+      role: m.role,
+      status: m.status, // pending / accepted
       initials: m.name ? m.name.substring(0,2).toUpperCase() : '??',
-      tasksCompleted: 0,
-      tasksInProgress: 0,
-      isOnline: true,
     }));
     
     res.json(formatted);
@@ -57,6 +66,7 @@ export const getTeamMembers = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 export const inviteTeamMember = async (req, res) => {
   try {
@@ -66,32 +76,115 @@ export const inviteTeamMember = async (req, res) => {
       return res.status(400).json({ message: "You must create a workspace first" });
     }
 
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = await User.create({
-        email,
-        name: name || email.split('@')[0],
-        role: role.toLowerCase() || 'member',
-        workspaceId: req.user.workspaceId,
-      });
-    } else {
-      user.workspaceId = req.user.workspaceId;
-      user.role = role.toLowerCase() || 'member';
-      await user.save();
+    // Check if already invited
+    const existing = await TeamMember.findOne({ workspaceId: req.user.workspaceId, user_email: email });
+    if (existing) {
+      return res.status(400).json({ message: "User already in team or invited" });
     }
 
+    // Create TeamMember with pending status
+    const teamMember = await TeamMember.create({
+      workspaceId: req.user.workspaceId,
+      user_email: email,
+      name: name || email.split('@')[0],
+      role: role || 'co-creator',
+      status: 'pending',
+    });
+
+    // Create Invitation token
+    const token = crypto.randomBytes(32).toString('hex');
+    await Invitation.create({
+      email,
+      workspaceId: req.user.workspaceId,
+      token,
+      status: 'pending',
+    });
+
+    // Send actual email
+    try {
+      const workspace = await Workspace.findById(req.user.workspaceId);
+      await sendInviteEmail(email, token, workspace.name);
+    } catch (mailError) {
+      console.error("Mail send failed but team member was created", mailError);
+    }
+
+    console.log(`Invite link logged for testing: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invite/${token}`);
+
+
     res.status(201).json({
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatarUrl: user.avatar,
-      initials: user.name ? user.name.substring(0,2).toUpperCase() : '??',
+      id: teamMember._id.toString(),
+      name: teamMember.name,
+      email: teamMember.user_email,
+      role: teamMember.role,
+      status: teamMember.status,
+      initials: teamMember.name ? teamMember.name.substring(0,2).toUpperCase() : '??',
+      inviteToken: token, // Returning token so frontend can show it or simulate email
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const acceptInvitation = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const invitation = await Invitation.findOne({ token, status: 'pending' });
+    
+    if (!invitation) {
+      return res.status(404).json({ message: "Invalid or expired invitation" });
+    }
+
+    // Update TeamMember status
+    await TeamMember.findOneAndUpdate(
+      { workspaceId: invitation.workspaceId, user_email: invitation.email },
+      { status: 'accepted' }
+    );
+
+    // Update invitation status
+    invitation.status = 'accepted';
+    await invitation.save();
+
+    // If user exists, update their workspaceId
+    const user = await User.findOne({ email: invitation.email });
+    if (user) {
+      user.workspaceId = invitation.workspaceId;
+      await user.save();
+    }
+
+    res.json({ message: "Invitation accepted successfully", workspaceId: invitation.workspaceId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateTeamMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, role } = req.body;
+    const member = await TeamMember.findByIdAndUpdate(id, { name, role }, { new: true });
+    res.json({
+      id: member._id.toString(),
+      name: member.name,
+      email: member.user_email,
+      role: member.role,
+      status: member.status,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteTeamMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await TeamMember.findByIdAndDelete(id);
+    res.json({ message: "Member removed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
 
 // --- Milestones ---
 export const getMilestones = async (req, res) => {
@@ -124,7 +217,9 @@ export const createMilestone = async (req, res) => {
       startDate,
       endDate,
       createdBy: req.user._id,
+      assigned_members: req.body.assigned_members || [], // New field
     });
+
 
     const sprints = [];
     if (configuredSprints && configuredSprints.length > 0) {

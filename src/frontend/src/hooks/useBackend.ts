@@ -57,8 +57,9 @@ export function useProfile() {
     role: user.role === 'creator' ? "admin" : "member",
     onboardingCompleted: true,
     joinDate: new Date().toISOString(),
-    avatarUrl: user.avatar,
+    avatarUrl: user.profile_logo || user.avatar,
   } : fallbackProfile;
+
 
   return useQuery<UserProfile>({
     queryKey: ["profile", user?._id],
@@ -71,13 +72,19 @@ export function useProfile() {
 // ─── Workspace ───────────────────────────────────────────────────────────────
 
 export function useWorkspace() {
+  const user = useAuthStore((state) => state.user);
   return useQuery<Workspace>({
     queryKey: ["workspace"],
-    queryFn: async () => MOCK_WORKSPACE,
-    enabled: true,
+    queryFn: async () => {
+      const { data } = await axios.get(`${BASE_URL}/api/users/profile`, getAuthHeaders());
+      // The profile endpoint returns the user with workspace details
+      return data.workspaceId || MOCK_WORKSPACE;
+    },
+    enabled: !!user,
     initialData: MOCK_WORKSPACE,
   });
 }
+
 
 // ─── Sprints ─────────────────────────────────────────────────────────────────
 
@@ -230,6 +237,33 @@ export function useInviteMember() {
     },
   });
 }
+
+export function useUpdateTeamMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { id: string; name: string; role: string }) => {
+      const { data } = await axios.put(`${API_URL}/team/${args.id}`, args, getAuthHeaders());
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teamMembers"] });
+    },
+  });
+}
+
+export function useDeleteTeamMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await axios.delete(`${API_URL}/team/${id}`, getAuthHeaders());
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teamMembers"] });
+    },
+  });
+}
+
 
 // ─── Workspace Creator Check ──────────────────────────────────────────────────
 

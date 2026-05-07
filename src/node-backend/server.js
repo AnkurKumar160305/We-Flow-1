@@ -27,8 +27,10 @@ app.use(
       const allowedOrigins = [
         "http://localhost:5173",
         "http://localhost:3000",
+        "http://localhost:3001",
         process.env.FRONTEND_URL,
       ];
+
       if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
         callback(null, true);
       } else {
@@ -39,12 +41,13 @@ app.use(
   })
 );
 
-// Rate Limiting
+// Rate Limiting (Relaxed for development)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === "production" ? 100 : 10000, // Higher limit for dev
   message: "Too many requests from this IP, please try again after 15 minutes",
 });
+
 app.use("/api/", limiter);
 
 // Body parser

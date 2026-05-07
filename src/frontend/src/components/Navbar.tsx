@@ -10,6 +10,9 @@ import {
   NotificationPanel,
 } from "./NotificationPanel";
 import { ProfilePanel } from "./ProfilePanel";
+import { useWorkspace, useProfile } from "../hooks/useBackend";
+
+
 
 const NAV_TABS = [
   { label: "Board", path: "/dashboard", icon: LayoutGrid },
@@ -23,6 +26,10 @@ export function Navbar() {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const { data: workspace } = useWorkspace();
+  const { data: profile } = useProfile();
+
+
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
 
@@ -62,32 +69,40 @@ export function Navbar() {
           {/* Logo */}
           <div className="flex items-center gap-2 mr-6 flex-shrink-0">
             <div className="flex items-center gap-1.5">
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 28 28"
-                fill="none"
-                className="flex-shrink-0"
-                role="img"
-                aria-label="WeFlow logo"
-              >
-                <polygon
-                  points="14,2 24,7.5 24,20.5 14,26 4,20.5 4,7.5"
-                  fill="oklch(0.62 0.22 40)"
-                  stroke="none"
+              {workspace?.logoUrl ? (
+                <img
+                  src={workspace.logoUrl}
+                  alt="Workspace Logo"
+                  className="w-7 h-7 rounded-lg object-cover border border-border/50"
                 />
-                <text
-                  x="14"
-                  y="18"
-                  textAnchor="middle"
-                  fontSize="10"
-                  fontWeight="700"
-                  fill="white"
-                  fontFamily="Space Grotesk"
+              ) : (
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 28 28"
+                  fill="none"
+                  className="flex-shrink-0"
+                  role="img"
+                  aria-label="WeFlow logo"
                 >
-                  W
-                </text>
-              </svg>
+                  <polygon
+                    points="14,2 24,7.5 24,20.5 14,26 4,20.5 4,7.5"
+                    fill="oklch(0.62 0.22 40)"
+                    stroke="none"
+                  />
+                  <text
+                    x="14"
+                    y="18"
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontWeight="700"
+                    fill="white"
+                    fontFamily="Space Grotesk"
+                  >
+                    W
+                  </text>
+                </svg>
+              )}
               <div className="flex flex-col leading-none">
                 <span className="text-sm font-bold font-display text-foreground tracking-tight">
                   WeFlow
@@ -99,15 +114,17 @@ export function Navbar() {
             </div>
           </div>
 
+
           {/* Workspace name */}
           <button
             type="button"
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors mr-4 text-sm font-semibold text-foreground"
             data-ocid="workspace-switcher"
           >
-            InHive
+            {workspace?.name || "InHive"}
             <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
+
 
           {/* Divider */}
           <div className="h-5 w-px bg-border mx-1 flex-shrink-0" />
@@ -193,14 +210,19 @@ export function Navbar() {
           <Link
             to="/profile"
             className={cn(
-              "p-2 rounded-md hover:bg-muted transition-colors mr-1",
-              currentPath === "/profile" && "bg-muted text-primary"
+              "p-1.5 rounded-full hover:bg-muted transition-colors mr-1 flex items-center justify-center",
+              currentPath === "/profile" && "ring-2 ring-primary ring-offset-2 ring-offset-card"
             )}
             aria-label="Profile"
             data-ocid="profile-nav-btn"
           >
-            <User className="w-[18px] h-[18px] text-muted-foreground" />
+            <Avatar 
+              initials={profile?.initials || "??"} 
+              avatarUrl={profile?.avatarUrl} 
+              size="sm" 
+            />
           </Link>
+
 
         </div>
       </header>

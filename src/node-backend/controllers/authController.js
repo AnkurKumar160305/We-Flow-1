@@ -126,6 +126,33 @@ const googleAuth = async (req, res, next) => {
   }
 };
 
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      user.profile_logo = req.body.profile_logo || user.profile_logo;
+      const updatedUser = await user.save();
+
+      res.json({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        profile_logo: updatedUser.profile_logo,
+        role: updatedUser.role,
+      });
+    } else {
+      res.status(404);
+      throw new Error("User not found");
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Public
@@ -133,4 +160,6 @@ const logoutUser = (req, res) => {
   res.status(200).json({ message: "User logged out successfully. Please remove token from frontend." });
 };
 
-export { registerUser, loginUser, googleAuth, logoutUser };
+export { registerUser, loginUser, googleAuth, logoutUser, updateProfile };
+
+
