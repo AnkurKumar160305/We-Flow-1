@@ -4,14 +4,9 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Bell, ChevronDown, LayoutGrid, Milestone, Users, User, Settings } from "lucide-react";
 import { useState } from "react";
 import { Avatar } from "./Avatar";
-import {
-  MOCK_NOTIFICATIONS,
-  type Notification,
-  NotificationPanel,
-} from "./NotificationPanel";
+import { NotificationPanel } from "./NotificationPanel";
 import { ProfilePanel } from "./ProfilePanel";
-import { useWorkspace, useProfile } from "../hooks/useBackend";
-
+import { useWorkspace, useProfile, useNotifications, useMarkAllNotificationsRead } from "../hooks/useBackend";
 
 
 const NAV_TABS = [
@@ -30,8 +25,9 @@ export function Navbar() {
   const { data: profile } = useProfile();
 
 
-  const [notifications, setNotifications] =
-    useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const workspaceId = workspace?.id ?? "default";
+  const { data: notifications = [] } = useNotifications(workspaceId);
+  const markAllReadMutation = useMarkAllNotificationsRead();
 
   // Dark mode: read from <html> class and toggle
   const [isDark, setIsDark] = useState(
@@ -53,7 +49,7 @@ export function Navbar() {
   }
 
   function markAllRead() {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    markAllReadMutation.mutate(workspaceId);
   }
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;

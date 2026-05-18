@@ -310,6 +310,22 @@ export function useCreateMilestone() {
   });
 }
 
+export function useDeleteMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, workspaceId }: { id: string; workspaceId: string }) => {
+      const { data } = await axios.delete(`${API_URL}/milestones/${id}`, getAuthHeaders());
+      return data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["milestones", variables.workspaceId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["sprints"] });
+    },
+  });
+}
+
 export function useGetSprintInviteLink(sprintId: string) {
   return useQuery<string>({
     queryKey: ["sprintInviteLink", sprintId],
@@ -362,6 +378,45 @@ export function useUpdateMilestoneSprintAssignees() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["milestones", variables.workspaceId],
+      });
+    },
+  });
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  timestamp: string;
+  icon?: string;
+  color?: string;
+}
+
+export function useNotifications(workspaceId: string) {
+  const user = useAuthStore((state) => state.user);
+  return useQuery<AppNotification[]>({
+    queryKey: ["notifications", workspaceId],
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/notifications?workspaceId=${workspaceId}`, getAuthHeaders());
+      return data;
+    },
+    enabled: !!user && !!workspaceId,
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (workspaceId: string) => {
+      const { data } = await axios.put(`${API_URL}/notifications/read-all`, { workspaceId }, getAuthHeaders());
+      return data;
+    },
+    onSuccess: (_data, workspaceId) => {
+      queryClient.invalidateQueries({
+        queryKey: ["notifications", workspaceId],
       });
     },
   });

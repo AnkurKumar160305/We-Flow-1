@@ -1,4 +1,6 @@
 import User from "../models/User.js";
+import Invitation from "../models/Invitation.js";
+import TeamMember from "../models/TeamMember.js";
 import generateToken from "../utils/generateToken.js";
 import { OAuth2Client } from "google-auth-library";
 
@@ -24,12 +26,22 @@ const registerUser = async (req, res, next) => {
 
     if (user) {
       const token = generateToken(res, user._id);
+
+      // Check if this user was invited (has a pending/accepted invitation)
+      const invitation = await Invitation.findOne({ email: user.email, status: 'accepted' });
+      if (invitation && !user.workspaceId) {
+        user.workspaceId = invitation.workspaceId;
+        user.role = 'co-creator';
+        await user.save();
+      }
+
       res.status(201).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         avatar: user.avatar,
         role: user.role,
+        workspaceId: user.workspaceId || null,
         token,
       });
     } else {
@@ -58,6 +70,7 @@ const loginUser = async (req, res, next) => {
         email: user.email,
         avatar: user.avatar,
         role: user.role,
+        workspaceId: user.workspaceId || null,
         token,
       });
     } else {
@@ -101,6 +114,14 @@ const googleAuth = async (req, res, next) => {
         googleId,
         avatar: picture,
       });
+
+      // Check if this new user was invited
+      const invitation = await Invitation.findOne({ email: user.email, status: 'accepted' });
+      if (invitation) {
+        user.workspaceId = invitation.workspaceId;
+        user.role = 'co-creator';
+        await user.save();
+      }
     } else if (!user.googleId) {
       // If user exists but no googleId (registered with email/password previously), update with googleId
       user.googleId = googleId;
@@ -116,6 +137,7 @@ const googleAuth = async (req, res, next) => {
       email: user.email,
       avatar: user.avatar,
       role: user.role,
+      workspaceId: user.workspaceId || null,
       token: jwtToken,
       isNewUser,
     });

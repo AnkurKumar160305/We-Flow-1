@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
-import { Camera, Link2, Plus, Upload, X, UserPlus, ChevronRight } from "lucide-react";
+import { Camera, Plus, X, ChevronRight } from "lucide-react";
 
 import { useRef, useState } from "react";
 import { OnboardingProgress } from "../components/OnboardingProgress";
@@ -44,11 +44,7 @@ interface TeamInvite {
   access: string;
 }
 
-interface MilestoneData {
-  name: string;
-  description: string;
-  endDate: string;
-}
+
 
 
 // ─── Field components ─────────────────────────────────────────────────────────
@@ -598,12 +594,7 @@ export default function Onboarding() {
   const { login } = useAuthStore();
   const createWorkspace = useCreateWorkspace();
 
-  const [milestoneData, setMilestoneData] = useState<MilestoneData>({
-    name: "",
-    description: "",
-    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  });
-  const [milestoneErrors, setMilestoneErrors] = useState<Partial<MilestoneData>>({});
+
   
   const [step, setStep] = useState(1);
 
@@ -682,7 +673,12 @@ export default function Onboarding() {
             password: accountData.password,
           });
           login(data, data.token);
-          navigate({ to: "/dashboard" });
+          // If user already has a workspace (via invite), go to profile first
+          if (data.workspaceId) {
+            navigate({ to: "/profile" });
+          } else {
+            navigate({ to: "/dashboard" });
+          }
         } else {
           const { data } = await axios.post(`${BASE_URL}/api/auth/register`, {
             name: accountData.fullName,
@@ -690,11 +686,16 @@ export default function Onboarding() {
             password: accountData.password,
           });
           login(data, data.token);
-          setProfileData((p) => ({
-            ...p,
-            fullName: p.fullName || accountData.fullName,
-          }));
-          setStep(2);
+          // If invited user (already has workspaceId), go to profile setup then dashboard
+          if (data.workspaceId) {
+            navigate({ to: "/profile" });
+          } else {
+            setProfileData((p) => ({
+              ...p,
+              fullName: p.fullName || accountData.fullName,
+            }));
+            setStep(2);
+          }
         }
       } catch (error: any) {
         console.error("Auth error", error);
@@ -767,36 +768,10 @@ export default function Onboarding() {
             console.warn(`Invite to ${invite.email} failed:`, inviteErr?.response?.data?.message || inviteErr.message);
           }
         }
-        setStep(5);
-      } catch (err) {
-        console.error("Team invitation failed", err);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-
-    if (step === 5) {
-      if (!milestoneData.name) {
-        setMilestoneErrors({ name: "Milestone name is required" });
-        return;
-      }
-      setIsLoading(true);
-      try {
-        const user = useAuthStore.getState().user;
-        await axios.post(`${BASE_URL}/api/data/milestones`, {
-          workspaceId: user.workspaceId,
-          name: milestoneData.name,
-          description: milestoneData.description,
-          startDate: new Date().toISOString(),
-          endDate: milestoneData.endDate ? new Date(milestoneData.endDate).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        }, {
-          headers: { Authorization: `Bearer ${useAuthStore.getState().token}` }
-        });
+        // Redirect straight to board after team setup
         navigate({ to: "/dashboard" });
       } catch (err) {
-        console.error("Milestone creation failed", err);
+        console.error("Team invitation failed", err);
       } finally {
         setIsLoading(false);
       }
@@ -810,6 +785,7 @@ export default function Onboarding() {
       return;
     }
 
+
   }
 
   async function handleGoogleSuccess(credentialResponse: any) {
@@ -820,7 +796,10 @@ export default function Onboarding() {
       });
       login(data, data.token);
       
-      if (data.isNewUser) {
+      if (data.workspaceId) {
+        // Invited user - go to profile then dashboard
+        navigate({ to: "/profile" });
+      } else if (data.isNewUser) {
         setProfileData((p) => ({ ...p, fullName: p.fullName || data.name }));
         setStep(2);
       } else {
@@ -905,13 +884,7 @@ export default function Onboarding() {
                 }
               />
             )}
-            {step === 5 && (
-              <Step5
-                data={milestoneData}
-                onChange={(d) => setMilestoneData((p) => ({ ...p, ...d }))}
-                errors={milestoneErrors}
-              />
-            )}
+
 
 
 
@@ -938,16 +911,6 @@ export default function Onboarding() {
                 </Button>
               )}
               <div className={cn("flex items-center gap-3", step === 4 && "gap-6")}>
-                {step === 2 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setStep(3)}
-                    className="text-muted-foreground"
-                  >
-                    Skip
-                  </Button>
-                )}
                 <Button
                   type="button"
                   onClick={handleContinue}
@@ -961,8 +924,7 @@ export default function Onboarding() {
 
                   {isLoading ? "Loading..." : step === 3
                     ? "Create Workspace →"
-                    : step === 4 ? "Send Invites →" 
-                    : step === 5 ? "Finish Setup →"
+                    : step === 4 ? "Send Invites & Continue →"
                     : isSignIn ? "Sign In →" : "Continue →"}
 
                 </Button>

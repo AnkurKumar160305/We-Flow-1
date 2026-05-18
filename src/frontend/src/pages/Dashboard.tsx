@@ -4,7 +4,7 @@ import { Layout } from "../components/Layout";
 import { LeftSidebar } from "../components/LeftSidebar";
 import { NewSprintModal } from "../components/NewSprintModal";
 import { RightSidebar } from "../components/RightSidebar";
-import { MOCK_MEMBERS, MOCK_SPRINTS, MOCK_TASKS } from "../data/mockData";
+import { MOCK_MEMBERS } from "../data/mockData"; // Keep only members fallback for now if no members exist
 import { useTaskStore } from "../hooks/useTaskStore";
 import { useTeamMembers, useTasks, useSprints } from "../hooks/useBackend";
 import type { Sprint, Task, TaskStatus, WorkspaceMember } from "../types";
@@ -39,17 +39,17 @@ function useSprintStore(initial: Sprint[]) {
 export default function Dashboard() {
   const { data: realSprints = [] } = useSprints();
   const { sprints, activeSprint, setActiveSprint, addSprint } =
-    useSprintStore(realSprints.length > 0 ? realSprints : MOCK_SPRINTS);
+    useSprintStore(realSprints);
   
   const { data: allTasks = [] } = useTasks();
   const { tasks: storeTasks, addTask, moveTask, updateTask, deleteTask } =
-    useTaskStore(allTasks.length > 0 ? allTasks : MOCK_TASKS);
+    useTaskStore(allTasks);
   
   const { data: members = [] } = useTeamMembers();
   const [newSprintOpen, setNewSprintOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  const tasks = allTasks.length > 0 ? allTasks : storeTasks;
+  const tasks = allTasks;
 
   const currentSprint = sprints.find((s) => s.id === activeSprint);
 

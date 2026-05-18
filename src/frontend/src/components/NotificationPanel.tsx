@@ -7,129 +7,35 @@ import {
   UserPlus,
   X,
   Zap,
+  Bell,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { AppNotification } from "../hooks/useBackend";
 
-export interface Notification {
-  id: string;
-  type:
-    | "sprint_started"
-    | "task_assigned"
-    | "teammate_joined"
-    | "milestone_created"
-    | "sprint_completed"
-    | "task_overdue"
-    | "comment";
-  title: string;
-  description: string;
-  timeAgo: string;
-  isRead: boolean;
-}
-
-export const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "notif-1",
-    type: "sprint_started",
-    title: "Sprint 1 is now live",
-    description: "Your active sprint kicked off. 8 tasks are ready to roll.",
-    timeAgo: "10 minutes ago",
-    isRead: false,
-  },
-  {
-    id: "notif-2",
-    type: "task_assigned",
-    title: "Task assigned to you",
-    description:
-      '"Redesign onboarding flow" was assigned to you by Jordan Lee.',
-    timeAgo: "1 hour ago",
-    isRead: false,
-  },
-  {
-    id: "notif-3",
-    type: "teammate_joined",
-    title: "Casey Kim joined the workspace",
-    description: "Casey Kim accepted their invite and joined InHive as Viewer.",
-    timeAgo: "3 hours ago",
-    isRead: false,
-  },
-  {
-    id: "notif-4",
-    type: "milestone_created",
-    title: "New milestone created",
-    description: '"Q2 Product Launch" milestone was created with 4 sprints.',
-    timeAgo: "Yesterday",
-    isRead: true,
-  },
-  {
-    id: "notif-5",
-    type: "sprint_completed",
-    title: "Sprint 2 completed 🎉",
-    description:
-      "Sprint 2 wrapped up with a velocity of 28 points. Great work!",
-    timeAgo: "2 days ago",
-    isRead: true,
-  },
-  {
-    id: "notif-6",
-    type: "task_overdue",
-    title: "Task overdue",
-    description: '"Resolve API rate limiting bug" is past its due date.',
-    timeAgo: "2 days ago",
-    isRead: true,
-  },
-  {
-    id: "notif-7",
-    type: "comment",
-    title: "Sam Chen commented",
-    description: '"Looks good to me! Just need to confirm the spacing tokens."',
-    timeAgo: "3 days ago",
-    isRead: true,
-  },
-];
-
-const TYPE_META: Record<
-  Notification["type"],
-  { icon: React.ElementType; iconClass: string; bgClass: string }
-> = {
-  sprint_started: {
-    icon: Zap,
-    iconClass: "text-primary",
-    bgClass: "bg-primary/10",
-  },
-  task_assigned: {
-    icon: Flag,
-    iconClass: "text-blue-600 dark:text-blue-400",
-    bgClass: "bg-blue-500/10",
-  },
-  teammate_joined: {
-    icon: UserPlus,
-    iconClass: "text-green-600 dark:text-green-400",
-    bgClass: "bg-green-500/10",
-  },
-  milestone_created: {
-    icon: CheckCircle2,
-    iconClass: "text-purple-600 dark:text-purple-400",
-    bgClass: "bg-purple-500/10",
-  },
-  sprint_completed: {
-    icon: CheckCircle2,
-    iconClass: "text-primary",
-    bgClass: "bg-primary/10",
-  },
-  task_overdue: {
-    icon: AlertTriangle,
-    iconClass: "text-destructive",
-    bgClass: "bg-destructive/10",
-  },
-  comment: {
-    icon: MessageSquare,
-    iconClass: "text-teal-600 dark:text-teal-400",
-    bgClass: "bg-teal-500/10",
-  },
+const iconMap: Record<string, React.ElementType> = {
+  AlertTriangle,
+  CheckCircle2,
+  Flag,
+  MessageSquare,
+  UserPlus,
+  Zap,
+  Bell,
 };
 
+// Simple helper to format time
+function formatTimeAgo(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) return "Just now";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  return `${Math.floor(diffInSeconds / 86400)}d ago`;
+}
+
 interface NotificationPanelProps {
-  notifications: Notification[];
+  notifications: AppNotification[];
   onMarkAllRead: () => void;
   onClose: () => void;
 }
@@ -212,8 +118,9 @@ export function NotificationPanel({
         ) : (
           <ul>
             {notifications.map((notif, idx) => {
-              const meta = TYPE_META[notif.type];
-              const Icon = meta.icon;
+              const Icon = notif.icon && iconMap[notif.icon] ? iconMap[notif.icon] : Bell;
+              const bgClass = notif.color ? `${notif.color.replace('text-', 'bg-')}/10` : 'bg-primary/10';
+              const iconClass = notif.color || 'text-primary';
               return (
                 <li
                   key={notif.id}
@@ -227,10 +134,10 @@ export function NotificationPanel({
                   <div
                     className={cn(
                       "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5",
-                      meta.bgClass,
+                      bgClass,
                     )}
                   >
-                    <Icon className={cn("w-4 h-4", meta.iconClass)} />
+                    <Icon className={cn("w-4 h-4", iconClass)} />
                   </div>
 
                   {/* Content */}
@@ -251,10 +158,10 @@ export function NotificationPanel({
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {notif.description}
+                      {notif.message}
                     </p>
                     <p className="text-[11px] text-muted-foreground/60 mt-1">
-                      {notif.timeAgo}
+                      {formatTimeAgo(notif.timestamp)}
                     </p>
                   </div>
                 </li>

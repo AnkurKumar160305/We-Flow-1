@@ -68,13 +68,39 @@ export function LeftSidebar({
     });
   }
 
+  const activeMilestone = milestones.find(m => m.sprints.some(s => s.status === 'active')) || milestones.find(m => m.id === sprints.find(s => s.id === activeSprint)?.milestoneId) || milestones[0];
+  const liveSprint = activeMilestone?.sprints.find(s => s.status === 'active') || activeMilestone?.sprints[0];
+
   return (
     <aside
       className="w-[220px] flex-shrink-0 bg-card border-r border-border flex flex-col h-full overflow-y-auto"
       data-ocid="left-sidebar"
     >
+      {/* ONGOING MILESTONE section */}
+      {activeMilestone && (
+        <div className="px-3 pt-4 pb-2">
+          <p className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase px-2 mb-2">
+            Ongoing Milestone
+          </p>
+          <div className="px-2 py-1.5 mb-2 rounded-md bg-purple-500/10 border border-purple-500/20">
+            <div className="flex items-center gap-2 mb-1">
+              <Flag className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span className="font-bold text-sm text-foreground truncate">{activeMilestone.name}</span>
+            </div>
+            {liveSprint && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="truncate flex-1 font-medium">{liveSprint.name}</span>
+                <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground border-0 font-semibold flex-shrink-0">
+                  Live
+                </Badge>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* SPRINTS section */}
-      <div className="px-3 pt-4 pb-2">
+      <div className="px-3 pt-2 pb-2">
         <p className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase px-2 mb-2">
           Sprints
         </p>

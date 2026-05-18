@@ -219,9 +219,24 @@ export function SprintStep1({
         />
       </div>
 
+      {/* Start Date */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">Start Date</Label>
+        <Input
+          type="date"
+          value={startDate ?? getTodayStr()}
+          readOnly
+          className="text-sm bg-muted/30"
+          data-ocid="sprint.start_date_input"
+        />
+        <p className="text-xs text-muted-foreground">
+          Auto-calculated from milestone or previous sprint.
+        </p>
+      </div>
+
       {/* Deadline */}
       <div className="space-y-1.5">
-        <Label className="text-sm font-semibold">Deadline</Label>
+        <Label className="text-sm font-semibold">End Date (Deadline)</Label>
         <Input
           type="date"
           value={data.deadline}

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { WeFlowLogo } from "../components/WeFlowLogo";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, XCircle, ArrowRight } from "lucide-react";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -13,13 +13,14 @@ export default function AcceptInvite() {
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
 
   useEffect(() => {
     async function verifyToken() {
       try {
         const { data } = await axios.get(`${BASE_URL}/api/data/accept-invite/${token}`);
         setStatus('success');
-
+        setWorkspaceName(data.workspaceName || 'your team');
         setMessage(data.message || "Invitation accepted successfully!");
       } catch (err: any) {
         console.error("Invite error", err);
@@ -50,13 +51,21 @@ export default function AcceptInvite() {
               <CheckCircle2 className="w-10 h-10 text-green-500" />
             </div>
             <h2 className="text-2xl font-bold text-foreground">Welcome to the Team!</h2>
-            <p className="text-muted-foreground">{message}</p>
-            <Button 
-              className="w-full bg-primary hover:bg-primary/90 mt-4"
-              onClick={() => navigate({ to: "/onboarding" })}
-            >
-              Sign In to Continue →
-            </Button>
+            <p className="text-muted-foreground">
+              You've been added to <strong>{workspaceName}</strong>. Sign in or create an account to get started.
+            </p>
+            <div className="w-full space-y-3 mt-2">
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 gap-2"
+                onClick={() => navigate({ to: "/onboarding" })}
+              >
+                <ArrowRight className="w-4 h-4" />
+                Sign In / Create Account →
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                After signing in, you'll complete your profile and be taken to the dashboard.
+              </p>
+            </div>
           </div>
         )}
 
@@ -67,7 +76,7 @@ export default function AcceptInvite() {
             </div>
             <h2 className="text-2xl font-bold text-foreground">Invitation Failed</h2>
             <p className="text-muted-foreground">{message}</p>
-            <Button 
+            <Button
               variant="outline"
               className="w-full mt-4"
               onClick={() => navigate({ to: "/onboarding" })}
@@ -77,7 +86,7 @@ export default function AcceptInvite() {
           </div>
         )}
       </div>
-      
+
       <p className="text-xs text-muted-foreground mt-8 opacity-50">
         © 2024 WeFlow by nHive. All rights reserved.
       </p>

@@ -20,6 +20,7 @@ import {
   MoreVertical,
   Plus,
   Rocket,
+  Trash2,
   User,
   Users,
   X,
@@ -43,6 +44,7 @@ import { MOCK_MEMBERS } from "../data/mockData";
 import {
   useAddSprintToMilestone,
   useCreateMilestone,
+  useDeleteMilestone,
   useIsWorkspaceCreator,
   useMilestones,
   useUpdateMilestoneSprintAssignees,
@@ -332,7 +334,7 @@ function MilestoneDetail({
 //
 // Flow:
 //   Phase "details"   → Set Name, Start, End
-//   Phase "overview"  → View added sprints, select duration (+ 2 Days / + 4 Days / + Custom)
+//   Phase "overview"  → View added sprints, select duration (+ 2 Sprints / + 4 Sprints / + Custom)
 //   Phase "sprint-form" → Configure an individual sprint
 //   After finishing milestone → createMilestone with all collected sprints
 
@@ -341,6 +343,12 @@ interface CreateModalProps {
   onClose: () => void;
   onCreated: (m: Milestone) => void;
   milestoneNumber: number;
+  initialData?: {
+    name: string;
+    description: string;
+    startDate: string;
+    endDate: string;
+  };
 }
 
 type ModalPhase = "details" | "overview" | "sprint-form";
@@ -351,20 +359,23 @@ function CreateMilestoneModal({
   onClose,
   onCreated,
   milestoneNumber,
+  initialData,
 }: CreateModalProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState(initialData?.name || "");
+  const [description, setDescription] = useState(initialData?.description || "");
   const [expectedOutcome, setExpectedOutcome] = useState("");
-  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(initialData?.startDate || new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(initialData?.endDate || "");
 
   const [configuredSprints, setConfiguredSprints] = useState<SprintFormData[]>([]);
   const [currentOption, setCurrentOption] = useState<SprintDurationOption | null>(null);
+  const [targetSprintsCount, setTargetSprintsCount] = useState<number>(0);
+  const [createdSprintsInBatch, setCreatedSprintsInBatch] = useState<number>(0);
 
   const { data: allMembers = [] } = useTeamMembers();
   const acceptedMembers = allMembers.filter(m => m.status === "accepted");
 
-  const [phase, setPhase] = useState<ModalPhase>("details");
+  const [phase, setPhase] = useState<ModalPhase>(initialData ? "overview" : "details");
 
   const createMilestone = useCreateMilestone();
   const today = new Date().toISOString().split("T")[0];
@@ -408,6 +419,12 @@ function CreateMilestoneModal({
 
   function handleAddSprint(option: SprintDurationOption) {
     setCurrentOption(option);
+    if (option === 2 || option === 4) {
+      setTargetSprintsCount(option);
+    } else {
+      setTargetSprintsCount(1);
+    }
+    setCreatedSprintsInBatch(0);
     setPhase("sprint-form");
   }
 
@@ -424,8 +441,15 @@ function CreateMilestoneModal({
       assignments: sprintForm.assignments,
     };
     setConfiguredSprints((prev) => [...prev, currentData]);
-    setPhase("overview");
-    setCurrentOption(null);
+    
+    const nextCreatedCount = createdSprintsInBatch + 1;
+    setCreatedSprintsInBatch(nextCreatedCount);
+    
+    if (nextCreatedCount >= targetSprintsCount) {
+      setPhase("overview");
+      setCurrentOption(null);
+    }
+    // Else, we stay in sprint-form phase to create the next sprint in the batch.
   }
 
   function handleSprintPhaseBack() {
@@ -496,7 +520,9 @@ function CreateMilestoneModal({
     ? "Create milestone"
     : isOverviewPhase
       ? "Add Sprints"
-      : `Configure Sprint ${configuredSprints.length + 1}`;
+      : currentOption === "custom" 
+        ? `Configure Sprint ${configuredSprints.length + 1}`
+        : `Configure Sprint ${createdSprintsInBatch + 1} of ${targetSprintsCount}`;
 
   const modalSubtitle = isDetailsPhase
     ? "Set the specific goal for Startup-"
@@ -628,7 +654,7 @@ function CreateMilestoneModal({
                 />
               </div>
 
-              {/* Timeline (Start Only) */}
+              {/* Timeline (Start + End) */}
               <div className="space-y-4 pt-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -643,6 +669,20 @@ function CreateMilestoneModal({
                       onChange={(e) => setStartDate(e.target.value)}
                       className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
                       data-ocid="create-milestone.start-date.input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2" htmlFor="end-date">
+                      End Date
+                    </Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      min={startDate || today}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
+                      data-ocid="create-milestone.end-date.input"
                     />
                   </div>
                 </div>
@@ -715,14 +755,14 @@ function CreateMilestoneModal({
                     className="flex-1 h-12 rounded-2xl border-orange-200 text-orange-600 font-bold hover:bg-orange-50 hover:border-orange-400 shadow-sm"
                     onClick={() => handleAddSprint(2)}
                   >
-                    + 2 Days
+                    + 2 Sprints
                   </Button>
                   <Button
                     variant="outline"
                     className="flex-1 h-12 rounded-2xl border-orange-200 text-orange-600 font-bold hover:bg-orange-50 hover:border-orange-400 shadow-sm"
                     onClick={() => handleAddSprint(4)}
                   >
-                    + 4 Days
+                    + 4 Sprints
                   </Button>
                   <Button
                     variant="outline"
@@ -735,13 +775,15 @@ function CreateMilestoneModal({
               </div>
 
               <div className="flex gap-3 pt-6">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-12 rounded-[1.25rem] border-gray-200 text-gray-600 font-bold hover:bg-gray-50"
-                  onClick={() => setPhase("details")}
-                >
-                  &larr; Back
-                </Button>
+                {!initialData && (
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-12 rounded-[1.25rem] border-gray-200 text-gray-600 font-bold hover:bg-gray-50"
+                    onClick={() => setPhase("details")}
+                  >
+                    &larr; Back
+                  </Button>
+                )}
                 <Button
                   className="flex-1 h-12 px-6 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-[1.25rem] shadow-lg shadow-orange-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 gap-2"
                   onClick={handleCreateMilestone}
@@ -824,7 +866,8 @@ function CreateMilestoneModal({
                   className="h-12 px-8 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-[1.25rem] shadow-lg shadow-orange-500/20 transition-all hover:-translate-y-0.5 gap-2"
                   onClick={handleSprintFinish}
                 >
-                  Save Sprint <Check className="w-5 h-5" />
+                  {createdSprintsInBatch + 1 < targetSprintsCount ? `Next Sprint (${createdSprintsInBatch + 2}/${targetSprintsCount})` : "Save Sprint"}
+                  <Check className="w-5 h-5" />
                 </Button>
               )}
             </div>
@@ -891,13 +934,16 @@ export default function Milestones() {
   );
   const [activeTab, setActiveTab] = useState<"active" | "create" | "upcoming" | "archived">("active");
   const [expandedMilestoneId, setExpandedMilestoneId] = useState<string | null>(null);
+  const [isCreatingNewMilestone, setIsCreatingNewMilestone] = useState(false);
 
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newStartDate, setNewStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [newDeadline, setNewDeadline] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 
   const { user } = useAuthStore();
   const createMilestone = useCreateMilestone();
+  const deleteMilestone = useDeleteMilestone();
   const firstName = user?.name?.split(" ")[0] || "Hira";
   const addSprintToMilestone = useAddSprintToMilestone();
 
@@ -1044,7 +1090,7 @@ export default function Milestones() {
                           </div>
                           <h3 className="text-[17px] font-bold text-[#1A1A1A] min-w-[200px]">{m.name}</h3>
                           <p className="text-sm font-medium text-gray-500 flex-1">
-                            {daysBetween(m.startDate, m.endDate)} days — {new Date(m.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toLowerCase()}
+                            {new Date(m.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} — {new Date(m.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} ({daysBetween(m.startDate, m.endDate)} days)
                           </p>
                         </div>
                         
@@ -1062,8 +1108,20 @@ export default function Milestones() {
                             </Badge>
                           )}
                           <div className="h-8 w-px bg-gray-200 mx-2" />
-                          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-[#6366F1] hover:bg-[#F3F4FF] transition-all">
-                            <MoreVertical className="w-6 h-6" />
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Delete milestone "${m.name}"? This will also delete all its sprints.`)) {
+                                deleteMilestone.mutate({ id: m.id, workspaceId });
+                                if (activeMilestoneId === m.id) setActiveMilestoneId(null);
+                                if (expandedMilestoneId === m.id) setExpandedMilestoneId(null);
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-5 h-5" />
                           </Button>
                         </div>
                       </div>
@@ -1130,37 +1188,42 @@ export default function Milestones() {
                   />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2">
-                    Deadline
-                  </label>
-                  <input
-                    type="date"
-                    value={newDeadline}
-                    onChange={(e) => setNewDeadline(e.target.value)}
-                    className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newStartDate}
+                      onChange={(e) => setNewStartDate(e.target.value)}
+                      className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-2">
+                      Deadline
+                    </label>
+                    <input
+                      type="date"
+                      value={newDeadline}
+                      onChange={(e) => setNewDeadline(e.target.value)}
+                      className="w-full h-14 rounded-2xl border border-gray-200 bg-gray-50/50 px-5 text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 focus:bg-white transition-all shadow-sm"
+                    />
+                  </div>
                 </div>
 
                 <Button 
-                  onClick={async () => {
+                  onClick={() => {
                     if (!newName.trim()) return;
-                    await createMilestone.mutateAsync({
-                      name: newName,
-                      description: newDescription,
-                      startDate: new Date().toISOString().split('T')[0],
-                      endDate: newDeadline,
-                      workspaceId,
-                      configuredSprints: [], // As per simple creation flow
-                    });
-                    setNewName("");
-                    setNewDescription("");
-                    setActiveTab("active");
+                    setActiveMilestoneId(null);
+                    setIsCreatingNewMilestone(true);
+                    setShowSprintModal(true);
                   }}
-                  disabled={createMilestone.isPending || !newName.trim()}
+                  disabled={!newName.trim()}
                   className="w-full h-14 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all mt-4"
                 >
-                  {createMilestone.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Milestone"}
+                  Create Milestone
                 </Button>
               </div>
             </div>
@@ -1178,16 +1241,40 @@ export default function Milestones() {
         </div>
       </div>
 
-      {/* Keep the existing modals but they won't be triggered by the new UI for now */}
-      {showSprintModal && (
+      {/* CreateMilestoneModal: Used to create a BRAND NEW milestone with sprints */}
+      {showSprintModal && isCreatingNewMilestone && (
+        <CreateMilestoneModal
+          workspaceId={workspaceId}
+          onClose={() => {
+            setShowSprintModal(false);
+            setIsCreatingNewMilestone(false);
+          }}
+          onCreated={(m) => {
+            setShowSprintModal(false);
+            setIsCreatingNewMilestone(false);
+            setActiveMilestoneId(m.id);
+            setActiveTab("active");
+            setNewName("");
+            setNewDescription("");
+          }}
+          milestoneNumber={(milestones.length + 1)}
+          initialData={{
+            name: newName,
+            description: newDescription,
+            startDate: newStartDate,
+            endDate: newDeadline
+          }}
+        />
+      )}
+
+      {/* NewSprintModal: Used to add an individual sprint to an EXISTING milestone */}
+      {showSprintModal && !isCreatingNewMilestone && activeMilestone && (
          <NewSprintModal
           open={showSprintModal}
           onClose={() => setShowSprintModal(false)}
           onAdd={handleAddSprint}
-          nextSprintNumber={(activeMilestone?.sprints.length ?? 0) + 1}
-          milestoneDeadline={
-            activeMilestone ? new Date(activeMilestone.endDate) : undefined
-          }
+          nextSprintNumber={(activeMilestone.sprints.length ?? 0) + 1}
+          milestoneDeadline={new Date(activeMilestone.endDate)}
         />
       )}
     </Layout>

@@ -5,6 +5,7 @@ import Workspace from "../models/Workspace.js";
 import User from "../models/User.js";
 import TeamMember from "../models/TeamMember.js";
 import Invitation from "../models/Invitation.js";
+import Notification from "../models/Notification.js";
 import crypto from "crypto";
 import { sendInviteEmail } from "../utils/mailer.js";
 
@@ -151,7 +152,11 @@ export const acceptInvitation = async (req, res) => {
       await user.save();
     }
 
-    res.json({ message: "Invitation accepted successfully", workspaceId: invitation.workspaceId });
+    // Get workspace name for the response
+    const workspace = await Workspace.findById(invitation.workspaceId);
+    const workspaceName = workspace ? workspace.name : 'your team';
+
+    res.json({ message: "Invitation accepted successfully", workspaceId: invitation.workspaceId, workspaceName });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -239,7 +244,36 @@ export const createMilestone = async (req, res) => {
       }
     }
 
+    // Create a live notification for the new milestone
+    await Notification.create({
+      title: "New Milestone Created",
+      message: `The milestone "${name}" has been successfully defined.`,
+      workspaceId,
+      icon: "Flag",
+      color: "text-orange-500",
+    });
+
     res.status(201).json({ ...milestone.toObject(), id: milestone._id.toString(), sprints });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// --- Delete Milestone ---
+export const deleteMilestone = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Delete all sprints belonging to this milestone
+    await Sprint.deleteMany({ milestoneId: id });
+    
+    // Delete the milestone itself
+    const milestone = await Milestone.findByIdAndDelete(id);
+    if (!milestone) {
+      return res.status(404).json({ message: "Milestone not found" });
+    }
+    
+    res.json({ message: "Milestone deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -290,6 +324,33 @@ export const updateTask = async (req, res) => {
     const { id } = req.params;
     const task = await Task.findByIdAndUpdate(id, req.body, { new: true });
     res.json({ ...task.toObject(), id: task._id.toString() });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// --- Notifications ---
+export const getNotifications = async (req, res) => {
+  try {
+    const { workspaceId } = req.query;
+    if (!workspaceId) {
+      return res.status(400).json({ message: "Workspace ID is required" });
+    }
+    const notifications = await Notification.find({ workspaceId }).sort({ timestamp: -1 }).lean();
+    res.json(notifications.map(n => ({ ...n, id: n._id.toString() })));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const markAllNotificationsRead = async (req, res) => {
+  try {
+    const { workspaceId } = req.body;
+    if (!workspaceId) {
+      return res.status(400).json({ message: "Workspace ID is required" });
+    }
+    await Notification.updateMany({ workspaceId, isRead: false }, { isRead: true });
+    res.json({ message: "All notifications marked as read" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

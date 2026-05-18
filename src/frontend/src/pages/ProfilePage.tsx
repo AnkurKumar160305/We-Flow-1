@@ -2,8 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layout } from "../components/Layout";
-import { MOCK_TASKS, MOCK_MEMBERS } from "../data/mockData";
-import { useProfile } from "../hooks/useBackend";
+import { useProfile, useTeamMembers, useTasks } from "../hooks/useBackend";
 import { 
   CalendarDays, 
   Briefcase, 
@@ -28,8 +27,11 @@ export default function ProfilePage() {
   const { logout } = useAuthStore();
   const navigate = useNavigate();
   
+  const { data: allMembers = [] } = useTeamMembers();
+  const { data: allTasks = [] } = useTasks();
+  
   if (!profile) return null;
-  const memberData = MOCK_MEMBERS.find(m => m.id === profile.id);
+  const memberData = allMembers.find(m => m.id === profile.id);
   
   const roleLabel = profile.role === "admin" ? "Creator" : "Co-creator";
 
@@ -50,12 +52,12 @@ export default function ProfilePage() {
   const department = DEPARTMENTS.find((d) => d.id === profile.departmentId);
   
   // Calculate stats for the bottom section
-  const totalTasks = MOCK_TASKS.filter(t => t.assigneeId === profile.id).length;
-  const doneTasks = MOCK_TASKS.filter(t => t.assigneeId === profile.id && t.status === "done").length;
-  const doingTasks = MOCK_TASKS.filter(t => t.assigneeId === profile.id && t.status === "doing").length;
-  const blockedTasks = MOCK_TASKS.filter(t => t.assigneeId === profile.id && t.status === "blocked").length;
-  const todoTasks = MOCK_TASKS.filter(t => t.assigneeId === profile.id && t.status === "todo").length;
-  const recentTasks = MOCK_TASKS.filter(t => t.assigneeId === profile.id).slice(0, 3);
+  const totalTasks = allTasks.filter(t => t.assigneeId === profile.id).length;
+  const doneTasks = allTasks.filter(t => t.assigneeId === profile.id && t.status === "done").length;
+  const doingTasks = allTasks.filter(t => t.assigneeId === profile.id && t.status === "doing").length;
+  const blockedTasks = allTasks.filter(t => t.assigneeId === profile.id && t.status === "blocked").length;
+  const todoTasks = allTasks.filter(t => t.assigneeId === profile.id && t.status === "todo").length;
+  const recentTasks = allTasks.filter(t => t.assigneeId === profile.id).slice(0, 3);
 
   function handleSave() {
     setName(tempName);

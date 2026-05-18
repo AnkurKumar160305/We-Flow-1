@@ -47,7 +47,8 @@ export function KanbanBoard({
     ? `${formatDate(activeSprint.startDate)} – ${formatDate(activeSprint.endDate)}`
     : "";
 
-  const momentum = 13;
+  const doneTasks = sprintTasks.filter((t) => t.status === "done").length;
+  const momentum = sprintTasks.length > 0 ? Math.round((doneTasks / sprintTasks.length) * 100) : 0;
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
